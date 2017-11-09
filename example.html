@@ -1,0 +1,176 @@
+<html>
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <title>SiSock Example</title>
+</head>
+
+<script type="text/javascript" src="lib/jquery.min.js"></script>
+<script type="text/javascript" src="lib/autobahn.min.js"></script>
+
+<script type="text/javascript">
+// The URL of the WAMP Router (Crossbar.io).
+var wsuri;
+
+if (document.location.origin === "null" ||
+    document.location.origin === "file://" ||
+    document.location.origin === "http://localhost")
+else
+    wsuri = (document.location.protocol === "http:" ? "ws:" : "wss:") + 
+            "//" + document.location.host + "/ws";
+
+// The WAMP connexion to the router.
+var connexion = new autobahn.Connection({
+    url: wsuri,
+    realm: "realm1"
+});
+
+// The session handler. We set it to null when there is no connexion.
+var session = null;
+
+// Fired when connexion is established and session attached.
+connexion.onopen = function(s, details) {
+    console.log("Connected to socket.");
+    $("#status").html("<p style='color: green;'>Connected</p>");
+    session = s;
+}
+
+
+// Fired when connexion was lost (or could not be established).
+connexion.onclose = function (reason, details) {
+    console.log("Connection lost: " + reason);
+    $("#status").html("<p style='color: red;'>Not connected</p>");
+    session = null;
+}
+
+function get_field() {
+    if (session === null)
+        return null;
+
+    var arg, n;
+
+    n = $("#select_field").val().length;
+    arg = [$("#select_field").val(),
+           Array(n).fill(-parseInt($("#select_n").val()) - 1),
+           Array(n).fill(parseInt($("#select_n").val()))];
+    session.call("com.example.get_field", arg).then(
+            function (res) {
+                var s, o;
+                
+                if (res === false) {
+                    alert("Sisock server could not access data file.");
+                    return;
+                }
+
+                s = "<table border=1><tr>";
+                for (var i = 0; i < res.length; i++)
+                    s += "<th>" + res[i]["field"] + "</th>";
+                s += "</tr>";
+                for (var i = 0; i < res[0]["val"].length; i++) {
+                    s += "<tr>";
+                    for (var j = 0; j < res.length; j++)
+                        s += "<td>" + res[j]["val"][i] + "</td>";
+                    s += "</tr>";
+                }
+                s += "</table>";
+                $("#field_val").html(s);
+            },
+            function (err) {
+                console.log("Error:", err);
+            }
+    );
+
+}
+
+function human_units(u) {
+    return u === "None" ? "samples" : u;
+}
+
+function get_field_list() {
+    if (session === null)
+        return null;
+
+    session.call("com.example.get_field_list", []).then(
+            function (res) {
+                var s, o;
+                
+                if (res === false) {
+                    alert("Sisock server could not access data file.");
+                    return;
+                }
+                
+                s = "<table border=1>";
+                o = "";
+                $(res).each(function(i, r) {
+                    s += "<tr><th colspan=4>" + r["type"] + "</tr></td>";
+                    $(r["field"]).each(function(j, f) {
+                        if (f["type"] == "G3Timestream" ||
+                            f["type"] == "G3TimestreamMap") {
+                            s += "<tr><td>" + f["name"] + 
+                                 "</td><td>" + f["type"] +
+                                 "</td><td>" + f["rate"] + " Hz" +
+                                 "</td><td>" + f["n"] + " " + 
+                                   human_units(f["units"]) + 
+                                 "</td></tr>";
+                            o += "<option value='" + f["name"] + "'>" + 
+                                 f["name"] + "</option>";
+                        }
+                        else {
+                            s += "<tr><td>" + f["name"] + 
+                                 "</td><td>" + f["type"] +
+                                 "</td><td>&mdash;</td><td>&mdash;</td></tr>";
+                        }
+                    });
+                });
+                s += "</table>";
+                $(field_list).html(s);
+                if (o.length) {
+                  $("#select_field").html(o);
+                  $("#get_field").removeAttr("disabled");
+                }
+                else {
+                  $("#select_field").html("<option disabled select value>" +
+                                       "None available</option>");
+                  $("#get_field").attr("disabled", true);
+                }
+                console.log("Result:", res.toString());
+            },
+            function (err) {
+                console.log("Error:", err);
+            }
+    );
+}
+
+// Now actually open the connexion.
+connexion.open();
+</script>
+
+<body>
+  <div id="status">
+    <p style="color: red;">Not connected</p>
+  </div>
+  <div>
+    <div style="float: left;">
+      <input type="button" value="Get Available Fields"
+             onclick="get_field_list()"/>&nbsp;&nbsp;
+    </div>
+    <div id="field_list" style="float: left;">
+    </div>
+  </div>
+  <div style="clear: both; padding-top: 1em;">
+    <div style="float: left; vertical-align: top">
+      <span style="vertical-align: top;">Get</span>
+      <input id="select_n" type="text" value="10" style="vertical-align: top;"/>
+      <span style="vertical-align: top;">latest values from</span>
+      <select multiple placeholder=" " id="select_field">
+        <option disabled selected value>
+          Click &lsquo;Get Field List&rsquo; to Start
+        </option>
+      </select>
+      <input id="get_field" type="button" value="Go!" disabled
+             style="vertical-align: top;" onclick="get_field()">
+    </div>
+    <div id="field_val" style="padding-left: 0.5em; float: left;">
+    </div>
+  </div>
+</body>
