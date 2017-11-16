@@ -3,12 +3,37 @@
     "workers": [
         {
             "type": "router",
+            "options": {
+                "pythonpath": [
+                    ".."
+                ]
+            },
             "realms": [
                 {
                     "name": "realm1",
                     "roles": [
                         {
-                            "name": "anonymous",
+                            "name": "sisock",
+                            "permissions": [
+                                {
+                                    "uri": "com.",
+                                    "match": "prefix",
+                                    "allow": {
+                                        "call": true,
+                                        "register": true,
+                                        "publish": true,
+                                        "subscribe": true
+                                    },
+                                    "disclose": {
+                                        "caller": false,
+                                        "publisher": false
+                                    },
+                                    "cache": true
+                                }
+                            ]
+                        },
+                        {
+                            "name": "frontend",
                             "permissions": [
                                 {
                                     "uri": "com.",
@@ -35,15 +60,34 @@
                     "type": "web",
                     "endpoint": {
                         "type": "tcp",
-                        "port": 8080
+                        "port": 8080,
+                        "tls": {
+                            "key": "server_key.pem",
+                            "certificate": "server_cert.pem"
+                        }
                     },
                     "paths": {
                         "/": {
                             "type": "static",
-                            "directory": ".."
+                            "directory": "../www"
                         },
                         "ws": {
-                            "type": "websocket"
+                            "type": "websocket",
+                            "auth": {
+                                "wampcra": {
+                                   "type": "static",
+                                   "users": {
+                                      "sisock_backend": {
+                                         "secret": "r>0.001",
+                                         "role": "sisock"
+                                      },
+                                      "sisock_client": {
+                                         "secret": "r>0.001",
+                                         "role": "frontend"
+                                      }
+                                   }
+                                }
+                            }
                         }
                     }
                 }
@@ -59,16 +103,22 @@
             "components": [
                 {
                     "type": "class",
-                    "classname": "sisock.AppSession",
+                    "classname": "sisock.backend_session",
                     "realm": "realm1",
                     "transport": {
                         "type": "websocket",
                         "endpoint": {
                             "type": "tcp",
                             "host": "127.0.0.1",
-                            "port": 8080
+                            "port": 8080,
+                            "tls": {
+                                "hostname": "localhost",
+                                "ca_certificates": [
+                                    "server_cert.pem"
+                                ]
+                            }
                         },
-                        "url": "ws://127.0.0.1:8080/ws"
+                        "url": "wss://localhost:8080/ws"
                     }
                 }
             ]

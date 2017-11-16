@@ -11,18 +11,34 @@
 <script type="text/javascript">
 // The URL of the WAMP Router (Crossbar.io).
 var wsuri;
+var key = "r>0.001";
 
 if (document.location.origin === "null" ||
     document.location.origin === "file://" ||
     document.location.origin === "http://localhost")
+    wsuri = "wss://127.0.0.1:8080/ws";
 else
     wsuri = (document.location.protocol === "http:" ? "ws:" : "wss:") + 
             "//" + document.location.host + "/ws";
 
+console.log(wsuri);
+
 // The WAMP connexion to the router.
 var connexion = new autobahn.Connection({
     url: wsuri,
-    realm: "realm1"
+    realm: "realm1",
+    authmethods: ["wampcra"],
+    authid: "sisock_client",
+    onchallenge: function(session, method, extra) {
+        console.log("onchallenge", method, extra);
+        if (method === "wampcra") {
+            console.log("Authenticating via '" + method + "'.");
+            return autobahn.auth_cra.sign(key, extra.challenge);
+        }
+        else {
+            throw "Don't know how to authenticate using '" + method + "'";
+        }
+    }
 });
 
 // The session handler. We set it to null when there is no connexion.

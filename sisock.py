@@ -5,15 +5,18 @@ from autobahn.twisted.util import sleep
 from autobahn.twisted.wamp import ApplicationSession
 from autobahn.wamp.exception import ApplicationError
 from autobahn import wamp
+from autobahn.wamp import auth
 
 import numpy as np
 import re
 
 from spt3g import core as ser
 
-data_path = "/net/abs-data1/data2/actpol/ahincks/whitenoisesample.g3"
+WAMP_USER = "sisock_backend"
+WAMP_SECRET = "r>0.001"
+DATA_PATH = "/home/ahincks/code/sisock/dat/test.g3"
 
-class AppSession(ApplicationSession):
+class backend_session(ApplicationSession):
     """The WAMPVsession for our live data server.
 
     Inherets from :class:`autobahn.twisted.wamp.ApplicationSession`
@@ -26,6 +29,35 @@ class AppSession(ApplicationSession):
     """
 
     log = Logger()
+
+    @inlineCallbacks
+    def onJoin(self, details):
+        """Called when the server is started.
+
+        Parameters
+        ----------
+        details : boh
+        """
+        reg = yield self.register(self)
+        self.log.info("Procedures registered. Awesome!!!")
+
+    def onConnect(self):
+        self.log.info("Client session connected. Awesome!!!")
+        self.join(self.config.realm, [u"wampcra"], WAMP_USER)
+
+
+    def onChallenge(self, challenge):
+        if challenge.method == u"wampcra":
+            self.log.info("WAMP-CRA challenge received.")
+
+            # compute signature for challenge, using the key
+            signature = auth.compute_wcs(WAMP_SECRET,
+                                         challenge.extra["challenge"])
+
+            # return the signature to the router for verification
+            return signature
+        else:
+            raise Exception("Invalid authmethod {}".format(challenge.method))
     
     @wamp.register(u"com.example.get_field")
     def get_field(self, field, start, n):
@@ -63,9 +95,9 @@ class AppSession(ApplicationSession):
         field_base = [re.match("[^\[]*", f).group(0) for f in field]
         subfield = [re.findall("[^[]*\[([^]]*)\]", f) for f in field]
         try:
-            fp = ser.G3File(data_path)
+            fp = ser.G3File(DATA_PATH)
         except RuntimeError:
-            self.log.error("Could not open %s." % (data_path))
+            self.log.error("Could not open %s." % (DATA_PATH))
             return False
         for ff in field:
             ret.append({"field" : ff,
@@ -103,9 +135,9 @@ class AppSession(ApplicationSession):
         self.log.info("Getting field list.")
         ret = []
         try:
-            fp = ser.G3File(data_path)
+            fp = ser.G3File(DATA_PATH)
         except RuntimeError:
-            self.log.error("Could not open %s." % (data_path))
+            self.log.error("Could not open %s." % (DATA_PATH))
             return False
         for frame in fp:
             ret.append({"type": "%s" % frame.type, "field": []})
@@ -139,14 +171,3 @@ class AppSession(ApplicationSession):
                     self.log.debug("Skipping %s with unknown key type." % 
                                    key)
         return ret
-
-    @inlineCallbacks
-    def onJoin(self, details):
-        """Called when the server is started.
-
-        Parameters
-        ----------
-        details : boh
-        """
-        reg = yield self.register(self)
-        self.log.info("Procedures registered.")
