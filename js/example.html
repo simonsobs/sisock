@@ -11,7 +11,7 @@
 <script type="text/javascript">
 // The URL of the WAMP Router (Crossbar.io).
 var wsuri;
-var key = "r>0.001";
+var key = "yW4V2T^bPD&rGFwy";
 
 if (document.location.origin === "null" ||
     document.location.origin === "file://" ||
@@ -19,16 +19,16 @@ if (document.location.origin === "null" ||
     wsuri = "wss://127.0.0.1:8080/ws";
 else
     wsuri = (document.location.protocol === "http:" ? "ws:" : "wss:") + 
-            "//" + document.location.host + "/ws";
+            "//" + document.location.hostname + ":8080/ws";
 
-console.log(wsuri);
+console.log("URI = " + wsuri);
 
 // The WAMP connexion to the router.
 var connexion = new autobahn.Connection({
     url: wsuri,
     realm: "realm1",
     authmethods: ["wampcra"],
-    authid: "sisock_client",
+    authid: "simonsobs",
     onchallenge: function(session, method, extra) {
         console.log("onchallenge", method, extra);
         if (method === "wampcra") {
@@ -95,7 +95,7 @@ function get_field() {
                 console.log("Error:", err);
             }
     );
-
+    $("#field_val").html("Awaiting response &hellip;");
 }
 
 function human_units(u) {
@@ -139,7 +139,7 @@ function get_field_list() {
                     });
                 });
                 s += "</table>";
-                $(field_list).html(s);
+                $("#field_list").html(s);
                 if (o.length) {
                   $("#select_field").html(o);
                   $("#get_field").removeAttr("disabled");
@@ -155,6 +155,8 @@ function get_field_list() {
                 console.log("Error:", err);
             }
     );
+    $("#field_list").html("Awaiting response (this may take a few seconds) " +
+                          "&hellip;");
 }
 
 // Now actually open the connexion.
@@ -173,12 +175,12 @@ connexion.open();
     <div id="field_list" style="float: left;">
     </div>
   </div>
-  <div style="clear: both; padding-top: 1em;">
+  <div style="clear: both; padding-top: 1em; padding-bottom: 10em;">
     <div style="float: left; vertical-align: top">
       <span style="vertical-align: top;">Get</span>
       <input id="select_n" type="text" value="10" style="vertical-align: top;"/>
       <span style="vertical-align: top;">latest values from</span>
-      <select multiple placeholder=" " id="select_field">
+      <select size=20 multiple placeholder=" " id="select_field">
         <option disabled selected value>
           Click &lsquo;Get Field List&rsquo; to Start
         </option>

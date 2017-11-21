@@ -78,11 +78,11 @@
                                    "type": "static",
                                    "users": {
                                       "sisock_backend": {
-                                         "secret": "r>0.001",
+                                         "secret": "Q5#x4%HCmgTsS!Pj",
                                          "role": "sisock"
                                       },
-                                      "sisock_client": {
-                                         "secret": "r>0.001",
+                                      "simonsobs": {
+                                         "secret": "yW4V2T^bPD&rGFwy",
                                          "role": "frontend"
                                       }
                                    }
@@ -109,16 +109,16 @@
                         "type": "websocket",
                         "endpoint": {
                             "type": "tcp",
-                            "host": "127.0.0.1",
+                            "host": "abs-inthe.princeton.edu",
                             "port": 8080,
                             "tls": {
-                                "hostname": "localhost",
+                                "hostname": "abs-inthe.princeton.edu",
                                 "ca_certificates": [
                                     "server_cert.pem"
                                 ]
                             }
                         },
-                        "url": "wss://localhost:8080/ws"
+                        "url": "wss://abs-inthe.princeton.edu:8080/ws"
                     }
                 }
             ]

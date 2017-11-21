@@ -1,0 +1,12 @@
+You need to generate certificates for the TLS to work. If you are currently in
+this directory, do the following:
+
+openssl genrsa -out server_key.pem 2048
+chmod 600 server_key.pem
+openssl req -new -key server_key.pem -out server_csr.pem
+openssl x509 -req -days 365 -in server_csr.pem -signkey server_key.pem \
+        -out server_cert.pem
+
+When you are creating the certificate, it is important that you set the "Common
+Name" (CN) properly: it should be the name of your server. (For local testing,
+"localhost" is OK; otherwise, a name like "example.com".)
