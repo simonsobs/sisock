@@ -10,10 +10,10 @@
             },
             "realms": [
                 {
-                    "name": "realm1",
+                    "name": "sisock",
                     "roles": [
                         {
-                            "name": "sisock",
+                            "name": "server",
                             "permissions": [
                                 {
                                     "uri": "com.",
@@ -79,7 +79,7 @@
                                    "users": {
                                       "sisock_backend": {
                                          "secret": "Q5#x4%HCmgTsS!Pj",
-                                         "role": "sisock"
+                                         "role": "server"
                                       },
                                       "simonsobs": {
                                          "secret": "yW4V2T^bPD&rGFwy",
@@ -103,8 +103,8 @@
             "components": [
                 {
                     "type": "class",
-                    "classname": "sisock.backend_session",
-                    "realm": "realm1",
+                    "classname": "sisock.hub",
+                    "realm": "sisock",
                     "transport": {
                         "type": "websocket",
                         "endpoint": {

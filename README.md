@@ -1,7 +1,7 @@
 # sisock
-Prototype engine for realtime browser viewing
+Engine for Simons Observatory data serving through websockets.
 
-Currently, a toy-model/proposal.
+![Diagram of ](doc/diagram.svg)
 
 ## Requirements
 * python3, crossbar.io, spt3g

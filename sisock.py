@@ -12,11 +12,11 @@ import re
 
 from spt3g import core as ser
 
-WAMP_USER = "sisock_backend"
+WAMP_USER = "server"
 WAMP_SECRET = "Q5#x4%HCmgTsS!Pj"
 DATA_PATH = "/home/ahincks/code/sisock/dat/test.g3"
 
-class backend_session(ApplicationSession):
+class hub(ApplicationSession):
     """The WAMP session for our live data server.
 
     Inherets from :class:`autobahn.twisted.wamp.ApplicationSession`
