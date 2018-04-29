@@ -16,7 +16,7 @@
                             "name": "server",
                             "permissions": [
                                 {
-                                    "uri": "com.",
+                                    "uri": "",
                                     "match": "prefix",
                                     "allow": {
                                         "call": true,
@@ -33,7 +33,7 @@
                             ]
                         },
                         {
-                            "name": "frontend",
+                            "name": "consumer",
                             "permissions": [
                                 {
                                     "uri": "com.",
@@ -77,13 +77,13 @@
                                 "wampcra": {
                                    "type": "static",
                                    "users": {
-                                      "sisock_backend": {
+                                      "server": {
                                          "secret": "Q5#x4%HCmgTsS!Pj",
                                          "role": "server"
                                       },
                                       "simonsobs": {
                                          "secret": "yW4V2T^bPD&rGFwy",
-                                         "role": "frontend"
+                                         "role": "consumer"
                                       }
                                    }
                                 }
@@ -103,22 +103,22 @@
             "components": [
                 {
                     "type": "class",
-                    "classname": "sisock.hub",
+                    "classname": "hub.hub",
                     "realm": "sisock",
                     "transport": {
                         "type": "websocket",
                         "endpoint": {
                             "type": "tcp",
-                            "host": "abs-inthe.princeton.edu",
+                            "host": "127.0.0.1",
                             "port": 8080,
                             "tls": {
-                                "hostname": "abs-inthe.princeton.edu",
+                                "hostname": "localhost",
                                 "ca_certificates": [
                                     "server_cert.pem"
                                 ]
                             }
                         },
-                        "url": "wss://abs-inthe.princeton.edu:8080/ws"
+                        "url": "wss://127.0.0.1:8080/ws"
                     }
                 }
             ]

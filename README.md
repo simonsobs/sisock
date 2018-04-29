@@ -1,7 +1,10 @@
 # sisock
 Engine for Simons Observatory data serving through websockets.
 
-![Diagram of ](doc/diagram.svg)
+Current version does not have a working consumer yet (i.e., js/example.html
+doesn't work and is from a legacy demo).
+
+![Diagram of stuff](doc/diagram.png =750x)
 
 ## Requirements
 * python3, crossbar.io, spt3g

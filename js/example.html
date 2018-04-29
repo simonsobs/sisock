@@ -26,7 +26,7 @@ console.log("URI = " + wsuri);
 // The WAMP connexion to the router.
 var connexion = new autobahn.Connection({
     url: wsuri,
-    realm: "realm1",
+    realm: "sisock",
     authmethods: ["wampcra"],
     authid: "simonsobs",
     onchallenge: function(session, method, extra) {

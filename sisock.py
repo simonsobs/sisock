@@ -1,173 +1,148 @@
-from twisted.internet.defer import inlineCallbacks
-from twisted.logger import Logger
+"""
+================================================================================
+Sisock: serve Simons data over secure sockets (:mod:`sisock`)
+================================================================================
 
+.. currentmodule:: sisock
+
+Classes
+=======
+
+.. autosummary::
+    :toctree: generated/
+
+    data_node_server
+
+Functions
+=========
+
+.. autosummary::
+   :toctree: generated/
+
+   uri
+
+Constants
+=========
+
+:const:`WAMP_USER`
+    Username for servers/hub to connect to WAMP router.
+:const:`WAMP_SECRET`
+    Password for servers/hub to connect to WAMP router.
+:const:`WAMP_URI`
+    Address of WAMP router.
+:const:`REALM`
+    Realm in WAMP router to connect to.
+:const:`BASE_URI`
+    The lowest level URI for all pub/sub topics and RPC registrations.
+"""
+
+import six
+from autobahn.twisted.component import Component, run
 from autobahn.twisted.util import sleep
-from autobahn.twisted.wamp import ApplicationSession
-from autobahn.wamp.exception import ApplicationError
+from autobahn.twisted.wamp import ApplicationSession, ApplicationRunner
+from autobahn.wamp.types import RegisterOptions
 from autobahn import wamp
-from autobahn.wamp import auth
+from twisted.python.failure import Failure
+from twisted.internet.defer import inlineCallbacks, returnValue
 
-import numpy as np
-import re
+WAMP_USER   = u"server"
+WAMP_SECRET = u"Q5#x4%HCmgTsS!Pj"
+WAMP_URI    = u"wss://127.0.0.1:8080/ws"
+REALM       = u"sisock"
+BASE_URI        = u"org.simonsobservatory"
 
-from spt3g import core as ser
+def uri(s):
+    """Compose a full URI for pub/sub or RPC calls.
 
-WAMP_USER = "server"
-WAMP_SECRET = "Q5#x4%HCmgTsS!Pj"
-DATA_PATH = "/home/ahincks/code/sisock/dat/test.g3"
+    Parameters
+    ----------
+    s : The final part of the URI to compose.
 
-class hub(ApplicationSession):
-    """The WAMP session for our live data server.
+    Returns
+    -------
+    uri : string
+       The string returned is "%s.%s" % (BASE_URI, s).
+    """
+    return u"%s.%s" % (BASE_URI, s)
 
-    Inherets from :class:`autobahn.twisted.wamp.ApplicationSession`
+class data_node_server(ApplicationSession):
+    """Parent class for all data node servers.
+
+    Attributes
+    ----------
+    name : string
+        In this parent class, name = `None`. Each data node server inheriting
+        this class must set its own name. The hub will reject duplicate
+        names.
 
     Methods
     -------
-    get_field
-    get_field_list
     onJoin
+    onConnect
+    onChallenge
     """
 
-    log = Logger()
+    name = None
 
     @inlineCallbacks
     def onJoin(self, details):
-        """Called when the server is started.
+        """Fired when the session joins WAMP (after successful authentication).
+
+        After registering procedures, the hub is requested to add this data node
+        server.
 
         Parameters
         ----------
-        details : boh
+        details : :class:`autobahn.wamp.types.SessionDetails`
+            Details about the session.
         """
+        self.log.info("Successfully joined WAMP.")
         reg = yield self.register(self)
-        self.log.info("Procedures registered. Awesome!!!")
+        for r in reg:
+            if isinstance(r, Failure):
+                print("Failed to register procedure: %s." % (r.value))
+            else:
+                print("Registration ID %d: %s." % (r.id, r.procedure))
+
+        # Tell the hub that we are ready to serve data.
+        try:
+            res = yield self.call(uri("data_node.add"), self.name,
+                                      details.session)
+            if not res:
+                self.log.warn("Request to add data node denied.")
+            else:
+                self.log.info("Data node registered as \"%s\"." % self.name)
+        except Exception as e:
+            self.log.error("Call error: %s." % e)
+
 
     def onConnect(self):
-        self.log.info("Client session connected. Awesome!!!")
+        """Fired when session first connects to WAMP router."""
+        self.log.info("Client session connected.")
         self.join(self.config.realm, [u"wampcra"], WAMP_USER)
 
 
     def onChallenge(self, challenge):
+        """Fired when the WAMP router requests authentication.
+
+        Parameters
+        ----------
+        challenge : :class:`autobahn.wamp.types.Challenge`
+            The authentication request to be responded to.
+
+        Returns
+        -------
+        signature : string
+            The authentication response.
+        """
         if challenge.method == u"wampcra":
             self.log.info("WAMP-CRA challenge received.")
 
             # compute signature for challenge, using the key
-            signature = auth.compute_wcs(WAMP_SECRET,
-                                         challenge.extra["challenge"])
+            signature = wamp.auth.compute_wcs(WAMP_SECRET,
+                                              challenge.extra["challenge"])
 
             # return the signature to the router for verification
             return signature
         else:
             raise Exception("Invalid authmethod {}".format(challenge.method))
-    
-    @wamp.register(u"com.example.get_field")
-    def get_field(self, field, start, n):
-        """Get vectors of data.
-
-        Currently, this naively assumes that there is only one frame of each
-        type in a file; or better, it will keep overwriting the data of a field
-        each time it finds a new frame of the same type ...
-
-        Parameters
-        ----------
-        field : list of strings
-            The fields for which to get the data. In the case of 
-            G3TimestreamMap, the field name is "map[key]", where 
-            "map" is the name of the timestream map and "key" is one of the
-            timestreams in the map.
-        start : list of integers
-            The first sample number to return. (To read from the end of the
-            vector, use a negative number. The length of this list should be the
-            same as that of `field`.
-        n : list of integers
-            The number of samples to return. The length of this list should be
-            the same as that of `field`.
-
-        Returns
-        -------
-        A list of dictionaries, one dictionary for each field requested. Each
-        dictionary is of the form {"field", "val", "error"}. Here, "field" is
-        the name of the field being returned---the order of fields is not
-        guaranteed to be the same as the order they were requested in; if
-        "error" is set to :obj:`None', then "val" contains the values, otherwise
-        "error" contains an error message.
-        """
-        ret = []
-        field_base = [re.match("[^\[]*", f).group(0) for f in field]
-        subfield = [re.findall("[^[]*\[([^]]*)\]", f) for f in field]
-        try:
-            fp = ser.G3File(DATA_PATH)
-        except RuntimeError:
-            self.log.error("Could not open %s." % (DATA_PATH))
-            return False
-        for ff in field:
-            ret.append({"field" : ff,
-                          "val" : False,
-                        "error" : "field not found"})
-        for frame in fp:
-            for i in range(len(field)):
-                if field_base[i] in frame.keys():
-                    j = start[i]
-                    k = start[i] + n[i]
-                    if len(subfield[i]):
-                        ff = frame[str(field_base[i])][str(subfield[i][0])]
-                    else:
-                        ff = frame[str(field_base[i])]
-                    ret[i]["val"] = np.asarray(ff)[j:k].tolist()
-                    ret[i]["error"] = None
-        return ret
-            
-    @wamp.register(u"com.example.get_field_list")
-    def get_field_list(self):
-        """Get a list of available fields.
-
-        For each frame type, return all the fields inside it. For
-        G3TimestreamMaps, return one field for all elements, in the form
-        "map[key]".
-
-        Returns:
-        A list of dictionaries, one dictionary per frame. Each dictionary has 
-        two keys: "type" and "field". "Field" is an list of dictionaries,
-        containing information on each of the members in the frame: as
-        applicable, "name", "type", "rate" (in Hz), "n" (number of samples in
-        frame) and "units".
-
-        """
-        self.log.info("Getting field list.")
-        ret = []
-        try:
-            fp = ser.G3File(DATA_PATH)
-        except RuntimeError:
-            self.log.error("Could not open %s." % (DATA_PATH))
-            return False
-        for frame in fp:
-            ret.append({"type": "%s" % frame.type, "field": []})
-            for key in frame.keys():
-                try:
-                    f = frame[key]
-                    try:
-                        t = type(f)
-                    except RuntimeError:
-                        t = "Unregistered"
-                    if t.__name__ == "G3Timestream":
-                        ret[-1]["field"].append({"name": key,
-                                                 "type": t.__name__,
-                                                 "rate": f.sample_rate,
-                                                 "n": len(f),
-                                                 "units": str(f.units)})
-                    elif t.__name__ == "G3TimestreamMap":
-                        for ts in f.keys():
-                            ff = f[ts]
-                            ret[-1]["field"].append({"name": key + \
-                                                             "[" + ts + "]",
-                                                     "type": t.__name__,
-                                                     "rate": ff.sample_rate,
-                                                     "n": len(ff),
-                                                     "units": str(ff.units)})
-                    else:
-                        ret[-1]["field"].append({"name": key,
-                                                 "type": t.__name__})
-
-                except RuntimeError:
-                    self.log.debug("Skipping %s with unknown key type." % 
-                                   key)
-        return ret
