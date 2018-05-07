@@ -9,8 +9,8 @@
 <script type="text/javascript" src="lib/autobahn.min.js"></script>
 
 <script type="text/javascript">
-// The URL of the WAMP Router (Crossbar.io).
 var wsuri;
+var field;
 var key = "yW4V2T^bPD&rGFwy";
 
 if (document.location.origin === "null" ||
@@ -49,6 +49,62 @@ connexion.onopen = function(s, details) {
     console.log("Connected to socket.");
     $("#status").html("<p style='color: green;'>Connected</p>");
     session = s;
+
+    // As soon as we connect, as the hub to give us the list of data nodes.
+    session.call("org.simonsobservatory.consumer.get_data_node").then(
+      function (res) {
+        $("#data_node option").each(function() {
+          $(this).remove()
+        });
+        if ($(res).length) {
+          $("#data_node option[value=null]").each(function() {
+            this.remove();
+          });
+          $(res).each(function(i, r) {
+            $("#data_node").append("<option value='" + r.name + "'>" + r.name +
+                                   "</option>");
+          });
+          display_msg("Hub reports " + $(res).length + " available data " +
+                      "nodes");
+          $("#get_fields").removeAttr("disabled");
+        }
+        else {
+          $("#data_node").append("<option disabled selected value=''>-- No " +
+                                 "data nodes available --</option>");
+          display_msg("Hub reports no available data nodes.");
+          $("#get_fields").attr("disabled", true);
+        }
+      },
+      function (err) {
+        console.log("Error:", err);
+      }
+    );
+
+    // Subscribe to the topics for hearing when nodes are added or removed.
+    session.subscribe("org.simonsobservatory.consumer.data_node_added",
+                      function(r) {
+      $("#data_node option[value='']").each(function() {
+        this.remove();
+      });
+      $("#data_node").append("<option value='" + r[0].name + "'>" + r[0].name +
+                             "</option>");
+      $("#get_fields").removeAttr("disabled");
+      display_msg("New data source available: " + r[0].name + ".");
+    });
+
+    session.subscribe("org.simonsobservatory.consumer.data_node_subtracted",
+                      function(r) {
+      $("#data_node option[value='" + r[0].name + "']").each(function() {
+        $(this).remove();
+      });
+      if (!$("#data_node option").size()) {
+        $("#data_node").append("<option disabled selected value=''>-- No " +
+                               "data nodes available --</option>");
+        $("#get_fields").attr("disabled", true);
+      }
+      display_msg("Data source no longer available: " + r[0].name + ".");
+    });
+
 }
 
 
@@ -56,107 +112,102 @@ connexion.onopen = function(s, details) {
 connexion.onclose = function (reason, details) {
     console.log("Connection lost: " + reason);
     $("#status").html("<p style='color: red;'>Not connected</p>");
+    display_msg("");
     session = null;
 }
 
-function get_field() {
+function display_msg(msg) {
+  $("#msg").html("<p style='font-style: italic; color: slategrey;'>" + msg + 
+                 "</p>");
+}
+
+function uri(u) {
+  return "org.simonsobservatory." + u;
+}
+
+function get_data() {
     if (session === null)
         return null;
 
     var arg, n;
 
-    n = $("#select_field").val().length;
-    arg = [$("#select_field").val(),
-           Array(n).fill(-parseInt($("#select_n").val()) - 1),
-           Array(n).fill(parseInt($("#select_n").val()))];
-    session.call("com.example.get_field", arg).then(
-            function (res) {
-                var s, o;
-                
-                if (res === false) {
-                    alert("Sisock server could not access data file.");
-                    return;
-                }
-
-                s = "<table border=1><tr>";
-                for (var i = 0; i < res.length; i++)
-                    s += "<th>" + res[i]["field"] + "</th>";
-                s += "</tr>";
-                for (var i = 0; i < res[0]["val"].length; i++) {
-                    s += "<tr>";
-                    for (var j = 0; j < res.length; j++)
-                        s += "<td>" + res[j]["val"][i] + "</td>";
-                    s += "</tr>";
-                }
-                s += "</table>";
-                $("#field_val").html(s);
-            },
-            function (err) {
-                console.log("Error:", err);
+    dn = $("#data_node").val()
+    start = Date.parse($("#select_start").val()) / 1000.0;
+    length = parseFloat($("#select_length").val());
+    arg = [$("#select_field").val(), start, length]
+    session.call(uri("consumer." + dn + ".get_data"), arg).then(
+      function (res) {
+        var field_avail = Object.keys(res.data);
+        var html = "";
+        display_msg("Data received.");
+        $(Object.keys(res.timeline)).each(function() {
+          var tl = this;
+          var dn = [];
+          var o = "# ";
+          $(field).each(function() {
+            if (this.timeline == tl && field_avail.includes(this.name)) {
+              dn.push(this.name);
+              o += " " + this.name + "(" + this.units + ")";
             }
+          });
+          if (!dn.length)
+            return;
+          o += "\n";
+          $(res.timeline[tl]).each(function(i) {
+            var d = new Date(res.timeline[tl][i]);
+            o += d.toISOString();
+            $(dn).each(function() {
+              o += "\t" + res.data[this][i];
+            });
+            o += "\n";
+          });
+          console.log(o);
+          html += "<div style='float: left; padding-right: 1em;'><pre>" + o + 
+                  "</pre></div>";
+        });
+        $("#data").html(html);
+      },
+      function (err) {
+        console.log("Error:", err);
+      }
     );
-    $("#field_val").html("Awaiting response &hellip;");
 }
 
 function human_units(u) {
     return u === "None" ? "samples" : u;
 }
 
-function get_field_list() {
+function get_fields() {
     if (session === null)
         return null;
 
-    session.call("com.example.get_field_list", []).then(
-            function (res) {
-                var s, o;
-                
-                if (res === false) {
-                    alert("Sisock server could not access data file.");
-                    return;
-                }
-                
-                s = "<table border=1>";
-                o = "";
-                $(res).each(function(i, r) {
-                    s += "<tr><th colspan=4>" + r["type"] + "</tr></td>";
-                    $(r["field"]).each(function(j, f) {
-                        if (f["type"] == "G3Timestream" ||
-                            f["type"] == "G3TimestreamMap") {
-                            s += "<tr><td>" + f["name"] + 
-                                 "</td><td>" + f["type"] +
-                                 "</td><td>" + f["rate"] + " Hz" +
-                                 "</td><td>" + f["n"] + " " + 
-                                   human_units(f["units"]) + 
-                                 "</td></tr>";
-                            o += "<option value='" + f["name"] + "'>" + 
-                                 f["name"] + "</option>";
-                        }
-                        else {
-                            s += "<tr><td>" + f["name"] + 
-                                 "</td><td>" + f["type"] +
-                                 "</td><td>&mdash;</td><td>&mdash;</td></tr>";
-                        }
-                    });
-                });
-                s += "</table>";
-                $("#field_list").html(s);
-                if (o.length) {
-                  $("#select_field").html(o);
-                  $("#get_field").removeAttr("disabled");
-                }
-                else {
-                  $("#select_field").html("<option disabled select value>" +
-                                       "None available</option>");
-                  $("#get_field").attr("disabled", true);
-                }
-                console.log("Result:", res.toString());
-            },
-            function (err) {
-                console.log("Error:", err);
-            }
-    );
-    $("#field_list").html("Awaiting response (this may take a few seconds) " +
-                          "&hellip;");
+    dn = $("#data_node").val()
+    arg = [Date.parse($("#get_fields_time").val()) / 1000.0];
+    session.call(uri("consumer." + dn + ".get_fields"), arg).then(
+      function (res) {
+        field = res;
+        display_msg("Server reports " + field.length + " field" +
+                    (field.length == 1 ? "" : "s") + " available at " +
+                    "requested time.");
+        o = "";
+        $(field).each(function(i, r) {
+          o += "<option value='" + r.name + "'>" + r.name +
+               "</option>";
+        });
+        if (o.length) {
+          $("#select_field").html(o);
+          $("#get_data").removeAttr("disabled");
+        }
+        else {
+          $("#select_field").html("<option disabled select value>" +
+                               "None available</option>");
+          $("#get_data").attr("disabled", true);
+        }
+        console.log("The following fields reported:", field);
+    },
+    function (err) {
+      console.log("Error:", err);
+    });
 }
 
 // Now actually open the connexion.
@@ -164,31 +215,49 @@ connexion.open();
 </script>
 
 <body>
-  <div id="status">
-    <p style="color: red;">Not connected</p>
+  <div id="info">
+    <span id="status" style="float: left;">
+      <p style="color: red;">Not connected</p>
+    </span>
+    <span id="msg" style="float: left; padding-left: 2em;">
+    </span>
   </div>
-  <div>
+  <div style="clear: both;">
+    <hr>
     <div style="float: left;">
-      <input type="button" value="Get Available Fields"
-             onclick="get_field_list()"/>&nbsp;&nbsp;
-    </div>
-    <div id="field_list" style="float: left;">
+      <input id="get_fields" disabled type="button" value="Get Available Fields"
+             onclick="get_fields()"/>&nbsp;from data node&nbsp;
+      <select id="data_node">
+        <option disabled selected value="">-- No data nodes available 
+                                           --</option>
+      </select>
+      at <input id="get_fields_time" type="text"
+          value="2017-07-15T12:00:00Z"> 
     </div>
   </div>
-  <div style="clear: both; padding-top: 1em; padding-bottom: 10em;">
+  <div style="clear: both; padding-top: 1em;">
+    <hr>
     <div style="float: left; vertical-align: top">
       <span style="vertical-align: top;">Get</span>
-      <input id="select_n" type="text" value="10" style="vertical-align: top;"/>
-      <span style="vertical-align: top;">latest values from</span>
-      <select size=20 multiple placeholder=" " id="select_field">
+      <input id="select_length" type="text" value="10.0" size=3
+             style="vertical-align: top;"/>
+      <span style="vertical-align: top;">sec of data from</span>
+      <select size=8 multiple placeholder=" " id="select_field">
         <option disabled selected value>
           Click &lsquo;Get Field List&rsquo; to Start
         </option>
       </select>
-      <input id="get_field" type="button" value="Go!" disabled
-             style="vertical-align: top;" onclick="get_field()">
+      <span style="vertical-align: top;">starting at</span>
+      <input id="select_start" type="text" value="2017-07-15T12:00:00Z"
+             style="vertical-align: top;"/>
+      <input id="get_data" type="button" value="Go!" disabled
+             style="vertical-align: top;" onclick="get_data()">
     </div>
-    <div id="field_val" style="padding-left: 0.5em; float: left;">
+  </div>
+  <div style="clear: both; padding-top: 1em;">
+    <hr>
+    <div id="data">
     </div>
+  </div>
   </div>
 </body>

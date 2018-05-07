@@ -30,6 +30,15 @@ import sisock
 
 from spt3g import core as ser
 
+class data_node(object):
+    def __init__(self, name, description, session_id):
+        self.name = name
+        self.description = description
+        self.session_id = session_id
+
+    def make_dict(self):
+        return {"name": self.name, "description": self.description}
+
 class hub(ApplicationSession):
     """The sisock hub that keeps track of available data node servers..
 
@@ -37,9 +46,8 @@ class hub(ApplicationSession):
 
     Attributes
     ----------
-    data_node : list
-        A list of tuples (name, session_id) containing the names of all the
-        available data nodes and the WAMP sessions they are associated with.
+    dn : :class:`data_node`
+        A list of data nodes available.
 
     Methods
     -------
@@ -55,7 +63,7 @@ class hub(ApplicationSession):
     # Attributes
     # --------------------------------------------------------------------------
 
-    data_node = []
+    dn = []
 
 
     # --------------------------------------------------------------------------
@@ -137,15 +145,15 @@ class hub(ApplicationSession):
             The session ID.
         """
 
-        n = [i for i in self.data_node]# if i[1] == ev]
+        n = [i for i in self.dn if i.session_id == ev]
         if len(n):
             self.log.info("Session \"%s\" controlling data node \"%s\" was "
-                          "disconnected." % (ev, n[0][0]))
+                          "disconnected." % (ev, n[0].name))
             if len(n) > 1:
                 self.log.error("More than one data node was associated with " +\
                                "the session. Removing the first. This is an " +\
                                "error that needs to be debugged.")
-            self.check_subtract_data_node(n[0][0], n[0][1])
+            self.check_subtract_data_node(n[0].name, n[0].session_id)
 
 
     # --------------------------------------------------------------------------
@@ -153,7 +161,7 @@ class hub(ApplicationSession):
     # --------------------------------------------------------------------------
 
     @wamp.register(sisock.uri("data_node.add"))
-    def add_data_node(self, name, session_id):
+    def add_data_node(self, name, description, session_id):
         """Request the addition a new data node server.
         
         Parameters
@@ -171,13 +179,18 @@ class hub(ApplicationSession):
         """
         self.log.info("Received request to add data node \"%s\"." % name)
         # Check that this data node has not yet been registered.
-        if len([i for i in self.data_node if i[0] == name]):
+        if len([i for i in self.dn if i.name == name]):
             self.log.warn("Data node \"%s\" already exists. " % (name) +\
                           "Denying request.")
             return False
 
-        self.data_node.append((name, session_id))
+        dn = data_node(name, description, session_id)
+        self.dn.append(dn)
         self.log.info("Added data node \"%s\"." % name)
+
+        # Let consumers know that a new data node is available.
+        self.publish(sisock.uri("consumer.data_node_added"), dn.make_dict())
+                     
         return True
 
 
@@ -199,6 +212,19 @@ class hub(ApplicationSession):
         return
 
 
+    @wamp.register(sisock.uri("consumer.get_data_node"))
+    def get_data_node(self):
+        """For getting a list of available data node servers.
+
+        Returns
+        -------
+        data_node : list of string tuples
+            For each data node available, the tuple (name, description) is
+            returned. If no data nodes are available, an empty list is returned.
+        """
+        return [i.make_dict() for i in self.dn]
+
+
     # --------------------------------------------------------------------------
     # Helper methods.
     # --------------------------------------------------------------------------
@@ -216,9 +242,19 @@ class hub(ApplicationSession):
         session_id : string
             The ID of the WAMP session running the server.
         """
-        if (name, session_id) in self.data_node:
-            self.data_node.remove((name, session_id))
+        rem = -1
+        for i in range(len(self.dn)):
+          if name == self.dn[i].name and session_id == self.dn[i].session_id:
+                rem = i
+                break
+        if rem >= 0:
+             # Let consumers know that a data node is disappearing.
+            self.publish(sisock.uri("consumer.data_node_subtracted"),
+                         self.dn[rem].make_dict())
+            del self.dn[rem]
             self.log.info("Removed data node \"%s\"." % (name))
+            
+
         else:
             self.log.warn("Data done \"%s\" was never added. Doing nothing." %\
                           (name))
