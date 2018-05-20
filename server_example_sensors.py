@@ -24,7 +24,7 @@ from OpenSSL import crypto
 field = []
 data = []
 
-class sensors(sisock.data_node_server):
+class sensors(sisock.DataNodeServer):
     """An example data node server, serving live data.
 
     Inhereits from :class:`sisock.data_node_server`.
@@ -32,9 +32,15 @@ class sensors(sisock.data_node_server):
     # Here we set the name of this data node server.
     name = "sensors"
     description = "The results of the UNIX 'sensors' command."
-    field = []
+    field = {}
     field_filled = False
-    data = []
+    data_depth = 1800
+    data = {}
+    interval = 2.5
+    timeline = {"t": {"field": [],
+                      "interval": interval}}
+    t = [None for i in range(data_depth)]
+    finalized_until = None
     loop_running = False
 
     def get_sensors(self):
@@ -42,22 +48,34 @@ class sensors(sisock.data_node_server):
         """
         d = subprocess.check_output(["sensors", "-u"])
         group = None
+        self.t.pop(0)
+        self.t.append(time.time())
         for dd in d.splitlines():
+            l = dd.decode("ascii").strip()
+            if not len(l):
+              group = None
+              continue
             if not group:
-                group = dd.strip()
-                if not self.field_filled:
-                    self.field.append({})
+                group = l.strip()
             else:
-                i = dd.find("_input")
+                i = l.find("_input")
                 if i > 0:
-                    f = "%s_%s" % (group, dd[0:i].strip())
+                    f = "%s_%s" % (group, l[0:i].strip())
                     if not self.field_filled:
-                        self.field[-1]["name"] = f
-                        self.field[-1]["description"] = ""
-                        self.field[-1]["timeline"] = "t"
-                        self.field[-1]["type"] = "number"
-                        self.field[-1]["units"] = "unknown"
-                # Continue HERE: add to the circular buffer.
+                        self.field[f] = {}
+                        self.field[f]["name"] = f
+                        self.field[f]["description"] = ""
+                        self.field[f]["timeline"] = "t"
+                        self.field[f]["type"] = "number"
+                        self.field[f]["units"] = "unknown"
+                        self.data[f] = [None for i in range(self.data_depth)]
+                        self.timeline["t"]["field"].append(f)
+                    self.data[f].pop(0)
+                    self.data[f].append(float(l.split()[1].strip()))
+            if not self.finalized_until:
+                self.finalized_until = self.t[-1]
+            elif self.t[-1] - self.finalized_until > 10.0:
+                self.finalized_until = self.t[-1]
         self.field_filled = True
 
     def after_onJoin(self, details):
@@ -65,29 +83,56 @@ class sensors(sisock.data_node_server):
         loop once we have joined the session.
         """
         # Read the sensors every second.
-        LoopingCall(self.get_sensors).start(1)
+        LoopingCall(self.get_sensors).start(self.interval)
 
-    def last_update(self, field):
-        """Over-riding the parent class prototype; see the parent class for the
-        API.
-
-        This function is not implemented yet in this example.
-        """
-        raise RuntimeError("This class is not yet functional.")
-
-    def get_data(self, field, start, length, min_step=None):
+    def get_data(self, field, start, end, min_step=None):
         """Over-riding the parent class prototype: see the parent class for the
         API.
         
         The `min_step` parameter is not implemented, and there is no bandwidth
         throttling implemented.
         """
-        raise RuntimeError("This class is not yet functional.")
+        ret = {"data": {}, "timeline": {}}
+        if not self.finalized_until or field == None:
+            return ret
+        start = sisock.sisock_to_unix_time(start)
+        end = sisock.sisock_to_unix_time(end)
+        timeline_done = False
+        for f in field:
+            ret["data"][f] = []
+            try:
+                if not timeline_done:
+                    ret["timeline"]["t"] = \
+                      {"t": [], "finalized_until": self.finalized_until}
+                for datum, t in zip(self.data[f], self.t):
+                    if not t:
+                        continue
+                    if t >= start and t < self.finalized_until \
+                                  and t < end:
+                        ret["data"][f].append(datum)
+                        if not timeline_done:
+                            ret["timeline"]["t"]["t"].append(t)
+                timeline_done = True
+            except KeyError:
+                # Silently pass over a requested field that doesn't exist.
+                pass
+        return ret
 
-    def get_fields(self, t):
+
+    def get_fields(self, start, end):
         """Over-riding the parent class prototype: see the parent class for the
         API."""
-        raise RuntimeError("This class is not yet functional.")
+        if not self.finalized_until:
+            return {}, {}
+
+        start = sisock.sisock_to_unix_time(start)
+        end = sisock.sisock_to_unix_time(end)
+        for tt in self.t:
+            if tt:
+                if tt >= start and self.finalized_until >= start \
+                               and tt < end:
+                    return self.field, self.timeline
+        return {}, {}
 
 
 if __name__ == "__main__":
