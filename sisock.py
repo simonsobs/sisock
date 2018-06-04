@@ -260,11 +260,10 @@ class DataNodeServer(ApplicationSession):
         - timeline : A dictionary with one entry per timeline:
           - timeline_name : An dictionary with the following entries.
             t               : an array containing the timestamps
-            finalized_until : the most recent timestamp available since the
-                              data node was last updated; :obj:`None` if the 
-                              data node is purely archival and is _never_ 
-                              updated or if the providing a recent timestamp
-                              would for some reason be ambiguous
+            finalized_until : the timestamp prior to which the presently
+                              requested data are guaranteed not to change; 
+                              :obj:`None` may be returned if all requested 
+                              data are finalized
 
         If data are not available during the whole length requested, all
         available data will be returend; if no data are available for a field,
