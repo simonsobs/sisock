@@ -10,7 +10,7 @@
 
 <script type="text/javascript">
 var wsuri;
-var field;
+var field, timeline;
 var key = "yW4V2T^bPD&rGFwy";
 
 if (document.location.origin === "null" ||
@@ -125,43 +125,54 @@ function uri(u) {
   return "org.simonsobservatory." + u;
 }
 
+function to_sisock_time(s) {
+  d = Date.parse(s);
+  console.log(d)
+  if (isNaN(d))
+    return parseInt(s);
+  else
+    return d / 1000.0;
+}
+
 function get_data() {
     if (session === null)
         return null;
 
-    var arg, n;
+    var arg, n, start, end;
 
     dn = $("#data_node").val()
-    start = Date.parse($("#select_start").val()) / 1000.0;
-    length = parseFloat($("#select_length").val());
-    arg = [$("#select_field").val(), start, length]
+    
+    start = to_sisock_time($("#select_start").val());
+    end = start + parseInt($("#select_length").val());
+    if (parseInt($("#select_start").val()) <= 0 && end > 0)
+      end = 0;
+    arg = [$("#select_field").val(), start, end]
     session.call(uri("consumer." + dn + ".get_data"), arg).then(
       function (res) {
         var field_avail = Object.keys(res.data);
         var html = "";
         display_msg("Data received.");
-        $(Object.keys(res.timeline)).each(function() {
-          var tl = this;
-          var dn = [];
-          var o = "# ";
-          $(field).each(function() {
-            if (this.timeline == tl && field_avail.includes(this.name)) {
-              dn.push(this.name);
-              o += " " + this.name + "(" + this.units + ")";
-            }
+        $.each(res.timeline, function(k, v) {
+          var o = "";
+          var n = 0
+          $(timeline[k].field).each(function() {
+            if (field_avail.includes(String(this)))
+              o += this + "(" + field[this].units + ")  ";
           });
-          if (!dn.length)
+          if (!o.length)
             return;
-          o += "\n";
-          $(res.timeline[tl]).each(function(i) {
-            var d = new Date(res.timeline[tl][i]);
+          var d = new Date(v.finalized_until * 1000.0);
+          o = "# Timeline \"" + k + "\": last updated @ " + d.toISOString() + 
+              "\n# " + o + "\n";
+          $(v.t).each(function(i) {
+            var d = new Date(this * 1000.0);
             o += d.toISOString();
-            $(dn).each(function() {
-              o += "\t" + res.data[this][i];
+            $(timeline[k].field).each(function() {
+              if (field_avail.includes(String(this)))
+                o += "\t" + res.data[this][i];
             });
             o += "\n";
           });
-          console.log(o);
           html += "<div style='float: left; padding-right: 1em;'><pre>" + o + 
                   "</pre></div>";
         });
@@ -178,23 +189,25 @@ function human_units(u) {
 }
 
 function get_fields() {
+    var start, end;
     if (session === null)
         return null;
 
+    start = to_sisock_time($("#get_fields_start").val());
+    end = to_sisock_time($("#get_fields_end").val());
     dn = $("#data_node").val()
-    arg = [Date.parse($("#get_fields_time").val()) / 1000.0];
-    session.call(uri("consumer." + dn + ".get_fields"), arg).then(
+    session.call(uri("consumer." + dn + ".get_fields"), [start, end]).then(
       function (res) {
-        field = res;
-        display_msg("Server reports " + field.length + " field" +
-                    (field.length == 1 ? "" : "s") + " available at " +
-                    "requested time.");
+        field = res[0];
+        timeline = res[1];
+        display_msg("Server reports " + Object.keys(field).length + " field" +
+                    (field.length == 1 ? "" : "s") + " available within " +
+                    "the requested interval.");
         o = "";
-        $(field).each(function(i, r) {
-          o += "<option value='" + r.name + "'>" + r.name +
-               "</option>";
+        $.each(field, function(k, v) {
+          o += "<option value='" + k + "'>" + k + "</option>";
         });
-        if (o.length) {
+        if (Object.keys(field).length) {
           $("#select_field").html(o);
           $("#get_data").removeAttr("disabled");
         }
@@ -204,6 +217,7 @@ function get_fields() {
           $("#get_data").attr("disabled", true);
         }
         console.log("The following fields reported:", field);
+        console.log("With the following timelines:", timeline);
     },
     function (err) {
       console.log("Error:", err);
@@ -231,8 +245,10 @@ connexion.open();
         <option disabled selected value="">-- No data nodes available 
                                            --</option>
       </select>
-      at <input id="get_fields_time" type="text"
-          value="2017-07-15T12:00:00Z"> 
+      between
+      <input id="get_fields_start" type="text" value="2017-07-15T12:00:00Z"> 
+      and
+      <input id="get_fields_end" type="text" value="2017-07-16T12:00:00Z"> 
     </div>
   </div>
   <div style="clear: both; padding-top: 1em;">

@@ -17,7 +17,7 @@ from twisted.internet._sslverify import OpenSSLCertificateAuthorities
 from twisted.internet.ssl import CertificateOptions
 from OpenSSL import crypto
 
-class apex_weather(sisock.data_node_server):
+class apex_weather(sisock.DataNodeServer):
     """An example data node server, serving historic data.
 
     This example serves APEX weather data over a couple of weeks of July 2017
@@ -29,15 +29,7 @@ class apex_weather(sisock.data_node_server):
     name = "apex_archive"
     description = "Archived APEX weather."
 
-    def last_update(self, field):
-        """Over-riding the parent class prototype; see the parent class for the
-        API.
-
-        This function is not implemented yet in this example.
-        """
-        raise RuntimeError("Not implemented.")
-
-    def get_data(self, field, start, length, min_step=None):
+    def get_data(self, field, start, end, min_step=None):
         """Over-riding the parent class prototype: see the parent class for the
         API.
         
@@ -45,13 +37,15 @@ class apex_weather(sisock.data_node_server):
         throttling implemented.
         """
         ret = {"data": {}, "timeline": {}}
-        print(field)
+        start = sisock.sisock_to_unix_time(start)
+        end = sisock.sisock_to_unix_time(end)
         for f in field:
             ret["data"][f] = []
             try:
                 with open("./example_data/%s.dat" % f) as fp:
                     i = 0
                     timeline = None
+                    t_last = None
                     for l in fp.readlines():
                         if i == 1:
                             tl = l.replace("# ", "").strip()
@@ -59,54 +53,61 @@ class apex_weather(sisock.data_node_server):
                                 dummy = ret["timeline"][tl]
                             except KeyError:
                                 timeline = tl
-                                ret["timeline"][timeline] = []
+                                ret["timeline"][timeline] = {"t": []}
                         i += 1
                         if l[0] == "#":
                             continue
                         t = float(l.split()[0])
-                        if t >= start and t <= start + length:
+                        if t >= start and t < end:
                             if timeline:
-                                ret["timeline"][timeline].append(t)
+                                ret["timeline"][timeline]["t"].append(t)
                             ret["data"][f].append(float(l.split()[1]))
+                        t_last = t
+                    if timeline:
+                        ret["timeline"][timeline]["finalized_until"] = t_last
             except IOError:
+                # Silently pass over a requested field that doesn't exist.
                 pass
         return ret
 
 
-    def get_fields(self, t):
+    def get_fields(self, start, end):
         """Over-riding the parent class prototype: see the parent class for the
         API."""
-        ret = []
+        field = {}
+        timeline = {}
+        start = sisock.sisock_to_unix_time(start)
+        end = sisock.sisock_to_unix_time(end)
         for path in glob.glob("./example_data/*.dat"):
-            field = {"name": os.path.split(path)[1].replace(".dat", ""),
-                     "type": "number"}
-            print(path)
+            name = os.path.split(path)[1].replace(".dat", "")
+            f = {"type": "number"}
             with open(path) as fp:
                 i = 0
-                t_less = False
                 field_available = False
+                last_t = 0
                 for l in fp.readlines():
                     if i == 0:
-                        field["description"] = l.replace("# ", "").strip()
+                        f["description"] = l.replace("# ", "").strip()
                     if i == 1:
-                        field["timeline"] = l.replace("# ", "").strip()
+                        f["timeline"] = l.replace("# ", "").strip()
                     if i == 2:
-                        field["units"] = l.replace("# ", "").strip()
+                        f["units"] = l.replace("# ", "").strip()
                     i += 1
                     if l[0] == "#":
                       continue
-                    if not t_less:
-                        if float(l.split()[0]) < t:
-                            t_less = True
-                    else:
-                        if float(l.split()[0]) > t:
-                            field_available = True
-                            break
-                    i += 1
+                    t = float(l.split()[0])
+                    if t >= start and t < end:
+                        field_available = True
+                        break
+                    last_t = t
             if field_available:
-                ret.append(field)
-        print(ret)
-        return ret
+                field[name] = f
+                try:
+                    timeline[f["timeline"]]["field"].append(name)
+                except KeyError:
+                    timeline[f["timeline"]] = {"interval": t - last_t,
+                                               "field": [name]}
+        return field,timeline
 
 
 if __name__ == "__main__":

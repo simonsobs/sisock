@@ -11,7 +11,7 @@ Classes
 .. autosummary::
     :toctree: generated/
 
-    data_node_server
+    DataNodeServer
 
 Functions
 =========
@@ -37,6 +37,7 @@ Constants
 """
 
 import six
+import time
 from autobahn.twisted.component import Component, run
 from autobahn.twisted.util import sleep
 from autobahn.twisted.wamp import ApplicationSession, ApplicationRunner
@@ -65,7 +66,26 @@ def uri(s):
     """
     return u"%s.%s" % (BASE_URI, s)
 
-class data_node_server(ApplicationSession):
+
+def sisock_to_unix_time(t):
+    """Convert a sisock timestamp to a UNIX timestamp.
+
+    Parameters
+    ----------
+    t : float
+        A sisock timestamp.
+
+    Returns
+    -------
+    If `t` is positive, return `t`. If `t` is zero or negative, return
+    :math:`time.time() - t`.
+    """
+    if t > 0:
+        return t
+    else:
+        return time.time() + t
+
+class DataNodeServer(ApplicationSession):
     """Parent class for all data node servers.
 
     Attributes
@@ -102,9 +122,7 @@ class data_node_server(ApplicationSession):
         self.log.info("Successfully joined WAMP.")
 
         proc = [(self.get_fields, uri("consumer." + self.name + ".get_fields")),
-                (self.get_data, uri("consumer." + self.name + ".get_data")),
-                (self.last_update, 
-                 uri("consumer." + self.name + ".last_update"))]
+                (self.get_data, uri("consumer." + self.name + ".get_data"))]
         for p in proc:
             try:
                 yield self.register(p[0], p[1])
@@ -171,33 +189,50 @@ class data_node_server(ApplicationSession):
         pass
 
 
-    def get_fields(self, t):
-        """Get a list of available fields at a given time.
+    def get_fields(self, start, end):
+        """Get a list of available fields and associated timelines available 
+        within a time interval.
+
+        Any field that has at least one available sample in the interval
+        `[start, stop)` must be included in the reply; however, be aware that
+        the data server is allowed to include fields with zero samples available
+        in the interval.
 
         This method must be overriden by child classes.
 
         Parameters
         ----------
-        t : float
-            The time at which to get the field list. If positive, interpret as a
+        start : float
+            The start time for the field list. If positive, interpret as a
             UNIX time; if 0 or negative, get field list `t` seconds ago.
+        end : float
+            The end time for the field list, using the same format as `start`.
 
         Returns
         -------
-        field : list of dictionaries
-            For each available field, a dictionary with the following entries is
-            provided:
-            - name        : the field name
+        Two dictionaries, field and timeline, as defined below.
+
+        field : dictionary
+            Each key is the name of a field, with a value that is a dictionary
+            containing the following entries.
             - description : information about the field; can be `None`.
-            - timeline    : the name of the timeline used by this field
+            - timeline    : the name of the timeline this field follows.
             - type        : one of "number", "string", "bool"
             - units       : the physical units; can be `None`
-            The list can be empty, indicating that no fields are available at
-            that time.
+            The dictionary can be empty, indicating that no fields are
+            available during the requested interval.
+
+        timeline : dictionary
+            Each key is the name of a dictionary, with a value that is a
+            dictionary containing the following entries.
+            - interval    : the average interval, in seconds, between readings;
+                            if the readings are aperiodic, :obj:`None`.
+            - field       : a list of field names associated with this timeline
         """
         raise RuntimeError("This method must be overriden.")
 
-    def get_data(self, field, start, length, min_stride=None):
+
+    def get_data(self, field, start, end, min_stride=None):
         """Request data.
 
         This method must be overriden by child classes.
@@ -208,9 +243,10 @@ class data_node_server(ApplicationSession):
                      The list of fields you want data from.
         start      : float
                      The start time for the data: if positive, interpret as a 
-                     UNIX time; if 0 or negative, start `t_start` seconds ago.
-        length     : float
-                     The number of seconds worth of data to request.
+                     UNIX time; if 0 or negative, begin `start` seconds ago.
+        end        : float
+                     The end time for the data, using the same format as
+                     `start`.
         min_stride : float or :obj:`None`
                      If not :obj:`None` then, if necessary, downsample data
                      such that successive samples are separated by at least
@@ -222,7 +258,12 @@ class data_node_server(ApplicationSession):
         - data : A dictionary with one entry per field:
           - field_name : array containing the timestream of data.
         - timeline : A dictionary with one entry per timeline:
-          - timeline_name : An array with timestamps.
+          - timeline_name : An dictionary with the following entries.
+            t               : an array containing the timestamps
+            finalized_until : the timestamp prior to which the presently
+                              requested data are guaranteed not to change; 
+                              :obj:`None` may be returned if all requested 
+                              data are finalized
 
         If data are not available during the whole length requested, all
         available data will be returend; if no data are available for a field,
@@ -233,24 +274,5 @@ class data_node_server(ApplicationSession):
 
         If the amount of data exceeds the data node server's pipeline allowance,
         :obj:`False` will be returned.
-        """
-        raise RuntimeError("This method must be overriden.")
-
-    def last_update(self, field):
-        """Ask when fields were last updated.
-
-        This method must be overriden by child classes.
-
-        Parameters
-        ----------
-        field : list of strings
-            The fields to query.
-
-        Returns
-        -------
-        t : list
-            For each field, return a UNIX time representing the timestamp of the
-            most recent datum. If the field name is unrecognised, :obj:`None` is
-            reported.
         """
         raise RuntimeError("This method must be overriden.")
