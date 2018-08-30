@@ -28,8 +28,6 @@ import numpy as np
 import re
 import sisock
 
-from spt3g import core as ser
-
 class data_node(object):
     def __init__(self, name, description, session_id):
         self.name = name

@@ -50,7 +50,7 @@ connexion.onopen = function(s, details) {
     $("#status").html("<p style='color: green;'>Connected</p>");
     session = s;
 
-    // As soon as we connect, as the hub to give us the list of data nodes.
+    // As soon as we connect, ask the hub to give us the list of data nodes.
     session.call("org.simonsobservatory.consumer.get_data_node").then(
       function (res) {
         $("#data_node option").each(function() {
