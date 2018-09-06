@@ -29,4 +29,4 @@ Engine for Simons Observatory data serving through websockets.
   serving live data: viz., the output of the Linux command-line utility <tt>sensors</tt>.
 * <tt>js/example.html</tt> &mdash; A simple client browser-based client showing 
   how to communicate with the hub and with data node servers.
-  <tt>grafana_http_json.py</tt> &mdash; A webserver that is a <tt>grafana</tt> data source that forwards data from <tt>sisock</tt>.
+* <tt>grafana_http_json.py</tt> &mdash; A webserver that is a <tt>grafana</tt> data source that forwards data from <tt>sisock</tt>.
