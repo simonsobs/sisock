@@ -29,7 +29,7 @@ class apex_weather(sisock.DataNodeServer):
     name = "apex_archive"
     description = "Archived APEX weather."
 
-    def get_data(self, field, start, end, min_step=None):
+    def get_data(self, field, start, end, min_stride=None):
         """Over-riding the parent class prototype: see the parent class for the
         API.
         
