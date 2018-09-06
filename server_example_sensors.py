@@ -85,18 +85,23 @@ class sensors(sisock.DataNodeServer):
         # Read the sensors every second.
         LoopingCall(self.get_sensors).start(self.interval)
 
-    def get_data(self, field, start, end, min_step=None):
+    def get_data(self, field, start, end, min_stride=None):
         """Over-riding the parent class prototype: see the parent class for the
         API.
         
-        The `min_step` parameter is not implemented, and there is no bandwidth
-        throttling implemented.
+        There is no bandwidth throttling implemented.
         """
         ret = {"data": {}, "timeline": {}}
         if not self.finalized_until or field == None:
             return ret
         start = sisock.sisock_to_unix_time(start)
         end = sisock.sisock_to_unix_time(end)
+        if min_stride:
+            stride = int(min_stride / self.interval)
+            if stride < 1:
+                stride = 1
+        else:
+            stride = 1
         timeline_done = False
         for f in field:
             ret["data"][f] = []
@@ -104,7 +109,11 @@ class sensors(sisock.DataNodeServer):
                 if not timeline_done:
                     ret["timeline"]["t"] = \
                       {"t": [], "finalized_until": self.finalized_until}
+                i = -1
                 for datum, t in zip(self.data[f], self.t):
+                    i += 1
+                    if i % stride != 0:
+                        continue
                     if not t:
                         continue
                     if t >= start and t < self.finalized_until \
