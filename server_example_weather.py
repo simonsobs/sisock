@@ -120,5 +120,5 @@ if __name__ == "__main__":
     opt = CertificateOptions(trustRoot=OpenSSLCertificateAuthorities([cert]))
 
     # Start our component.
-    runner = ApplicationRunner(sisock.WAMP_URI, sisock.REALM, ssl=opt)
+    runner = ApplicationRunner('wss://sisock_crossbar:8080/ws', sisock.REALM, ssl=opt)
     runner.run(apex_weather)

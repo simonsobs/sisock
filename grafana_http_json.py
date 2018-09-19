@@ -270,7 +270,7 @@ def main(reactor):
                 u"url": sisock.WAMP_URI,
                 u"endpoint": {
                   u"type": u"tcp",
-                  u"host": u"127.0.0.1",
+                  u"host": u"sisock_crossbar",
                   u"port": 8080,
                   u"tls": opt
                 }
