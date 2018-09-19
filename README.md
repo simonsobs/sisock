@@ -105,3 +105,12 @@ You'll need to configure the Grafana data source as the SimpleJson type with a
 URL of `http://sisock_grafana_http:5000`. The user defined bridge network,
 sisock-net, enables DNS resolution by container name, in this case
 `sisock_grafana_http`.
+
+### Clean-up
+To clean up the Docker containers when done with the demo:
+
+```
+$ docker container stop sensors_server weather_server sisock_grafana_http sisock_crossbar sisock_grafana
+$ docker container rm sensors_server weather_server sisock_grafana_http sisock_crossbar sisock_grafana
+$ docker network rm sisock-net
+```
