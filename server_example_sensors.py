@@ -156,5 +156,5 @@ if __name__ == "__main__":
     # Start reading the sensors
 
     # Start our component.
-    runner = ApplicationRunner(sisock.WAMP_URI, sisock.REALM, ssl=opt)
+    runner = ApplicationRunner('wss://sisock_crossbar:8080/ws', sisock.REALM, ssl=opt)
     runner.run(sensors)
