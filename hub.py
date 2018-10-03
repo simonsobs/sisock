@@ -26,7 +26,7 @@ from autobahn.wamp import auth
 
 import numpy as np
 import re
-import sisock
+from sisock import sisock
 
 class data_node(object):
     def __init__(self, name, description, session_id):
