@@ -4,8 +4,8 @@ An example data node server.
 
 import glob
 import os
-import sisock
 import six
+
 from autobahn.twisted.component import Component, run
 from autobahn.twisted.util import sleep
 from autobahn.twisted.wamp import ApplicationSession, ApplicationRunner
@@ -17,13 +17,15 @@ from twisted.internet._sslverify import OpenSSLCertificateAuthorities
 from twisted.internet.ssl import CertificateOptions
 from OpenSSL import crypto
 
-class apex_weather(sisock.DataNodeServer):
+import sisock
+
+class apex_weather(sisock.base.DataNodeServer):
     """An example data node server, serving historic data.
 
     This example serves APEX weather data over a couple of weeks of July 2017
     from simple text files.
 
-    Inhereits from :class:`sisock.data_node_server`.
+    Inhereits from :class:`sisock.base.data_node_server`.
     """
     # Here we set the name of this data node server.
     name = "apex_archive"
@@ -37,8 +39,8 @@ class apex_weather(sisock.DataNodeServer):
         throttling implemented.
         """
         ret = {"data": {}, "timeline": {}}
-        start = sisock.sisock_to_unix_time(start)
-        end = sisock.sisock_to_unix_time(end)
+        start = sisock.base.sisock_to_unix_time(start)
+        end = sisock.base.sisock_to_unix_time(end)
         for f in field:
             ret["data"][f] = []
             try:
@@ -76,8 +78,8 @@ class apex_weather(sisock.DataNodeServer):
         API."""
         field = {}
         timeline = {}
-        start = sisock.sisock_to_unix_time(start)
-        end = sisock.sisock_to_unix_time(end)
+        start = sisock.base.sisock_to_unix_time(start)
+        end = sisock.base.sisock_to_unix_time(end)
         for path in glob.glob("./example_data/*.dat"):
             name = os.path.split(path)[1].replace(".dat", "")
             f = {"type": "number"}
@@ -120,5 +122,5 @@ if __name__ == "__main__":
     opt = CertificateOptions(trustRoot=OpenSSLCertificateAuthorities([cert]))
 
     # Start our component.
-    runner = ApplicationRunner('wss://sisock_crossbar:8080/ws', sisock.REALM, ssl=opt)
+    runner = ApplicationRunner('wss://sisock_crossbar:8080/ws', sisock.base.REALM, ssl=opt)
     runner.run(apex_weather)

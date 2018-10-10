@@ -4,11 +4,11 @@ An example data node server.
 
 import glob
 import os
-import sisock
 import six
 import subprocess
 import time
 import threading
+
 from autobahn.twisted.component import Component, run
 from autobahn.twisted.util import sleep
 from autobahn.twisted.wamp import ApplicationSession, ApplicationRunner
@@ -21,13 +21,15 @@ from twisted.internet._sslverify import OpenSSLCertificateAuthorities
 from twisted.internet.ssl import CertificateOptions
 from OpenSSL import crypto
 
+import sisock
+
 field = []
 data = []
 
-class sensors(sisock.DataNodeServer):
+class sensors(sisock.base.DataNodeServer):
     """An example data node server, serving live data.
 
-    Inhereits from :class:`sisock.data_node_server`.
+    Inhereits from :class:`sisock.base.data_node_server`.
     """
     # Here we set the name of this data node server.
     name = "sensors"
@@ -94,8 +96,8 @@ class sensors(sisock.DataNodeServer):
         ret = {"data": {}, "timeline": {}}
         if not self.finalized_until or field == None:
             return ret
-        start = sisock.sisock_to_unix_time(start)
-        end = sisock.sisock_to_unix_time(end)
+        start = sisock.base.sisock_to_unix_time(start)
+        end = sisock.base.sisock_to_unix_time(end)
         if min_stride:
             stride = int(min_stride / self.interval)
             if stride < 1:
@@ -134,8 +136,8 @@ class sensors(sisock.DataNodeServer):
         if not self.finalized_until:
             return {}, {}
 
-        start = sisock.sisock_to_unix_time(start)
-        end = sisock.sisock_to_unix_time(end)
+        start = sisock.base.sisock_to_unix_time(start)
+        end = sisock.base.sisock_to_unix_time(end)
         for tt in self.t:
             if tt:
                 if tt >= start and self.finalized_until >= start \
@@ -156,5 +158,5 @@ if __name__ == "__main__":
     # Start reading the sensors
 
     # Start our component.
-    runner = ApplicationRunner('wss://sisock_crossbar:8080/ws', sisock.REALM, ssl=opt)
+    runner = ApplicationRunner('wss://sisock_crossbar:8080/ws', sisock.base.REALM, ssl=opt)
     runner.run(sensors)
