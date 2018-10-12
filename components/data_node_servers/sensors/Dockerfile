@@ -1,5 +1,8 @@
+# sisock sensors server
+# Example sisock server, serving CPU temperature data via `sensors`
+
 # Use an official Python runtime as a parent image
-FROM python
+FROM sisock_crossbar
 
 # Set the working directory to /app
 WORKDIR /app
@@ -8,13 +11,8 @@ WORKDIR /app
 ADD . /app
 
 # Install any needed packages specified in requirements.txt
-RUN pip install --trusted-host pypi.python.org -r requirements.txt
-
-# Make port 80 available to the world outside this container
-# EXPOSE 5000
-
-# Define environment variable
-#ENV NAME World
+RUN apt-get update
+RUN apt-get install -y lm-sensors
 
 # Run app.py when the container launches
-CMD ["python3", "server_example_weather.py"]
+CMD ["python3", "server_example_sensors.py"]

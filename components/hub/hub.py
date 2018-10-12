@@ -26,6 +26,7 @@ from autobahn.wamp import auth
 
 import numpy as np
 import re
+
 import sisock
 
 class data_node(object):
@@ -95,7 +96,7 @@ class hub(ApplicationSession):
     def onConnect(self):
         """Fired when session first connects to WAMP router.""" 
         self.log.info("Client session connected.")
-        self.join(self.config.realm, [u"wampcra"], sisock.WAMP_USER)
+        self.join(self.config.realm, [u"wampcra"], sisock.base.WAMP_USER)
 
 
     def onChallenge(self, challenge):
@@ -115,7 +116,7 @@ class hub(ApplicationSession):
             self.log.info("WAMP-CRA challenge received.")
 
             # Compute signature for challenge, using the key
-            signature = auth.compute_wcs(sisock.WAMP_SECRET,
+            signature = auth.compute_wcs(sisock.base.WAMP_SECRET,
                                          challenge.extra["challenge"])
 
             # Return the signature to the router for verification
@@ -158,7 +159,7 @@ class hub(ApplicationSession):
     # RPC registrations.
     # --------------------------------------------------------------------------
 
-    @wamp.register(sisock.uri("data_node.add"))
+    @wamp.register(sisock.base.uri("data_node.add"))
     def add_data_node(self, name, description, session_id):
         """Request the addition a new data node server.
         
@@ -187,12 +188,12 @@ class hub(ApplicationSession):
         self.log.info("Added data node \"%s\"." % name)
 
         # Let consumers know that a new data node is available.
-        self.publish(sisock.uri("consumer.data_node_added"), dn.make_dict())
+        self.publish(sisock.base.uri("consumer.data_node_added"), dn.make_dict())
                      
         return True
 
 
-    @wamp.register(sisock.uri("data_node.subtract"))
+    @wamp.register(sisock.base.uri("data_node.subtract"))
     def subtract_data_node(self, name, session_id):
         """Request the removal of a data node server.
 
@@ -210,7 +211,7 @@ class hub(ApplicationSession):
         return
 
 
-    @wamp.register(sisock.uri("consumer.get_data_node"))
+    @wamp.register(sisock.base.uri("consumer.get_data_node"))
     def get_data_node(self):
         """For getting a list of available data node servers.
 
@@ -247,7 +248,7 @@ class hub(ApplicationSession):
                 break
         if rem >= 0:
              # Let consumers know that a data node is disappearing.
-            self.publish(sisock.uri("consumer.data_node_subtracted"),
+            self.publish(sisock.base.uri("consumer.data_node_subtracted"),
                          self.dn[rem].make_dict())
             del self.dn[rem]
             self.log.info("Removed data node \"%s\"." % (name))

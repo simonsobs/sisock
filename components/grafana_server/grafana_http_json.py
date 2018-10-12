@@ -17,7 +17,6 @@ from klein import Klein
 from OpenSSL import crypto
 import numpy as np
 import pytz
-import sisock
 import six
 from twisted.internet.defer import inlineCallbacks, Deferred
 from twisted.internet.endpoints import SSL4ServerEndpoint
@@ -26,6 +25,8 @@ from twisted.web.server import Site
 from twisted.internet.task import react
 from twisted.internet._sslverify import OpenSSLCertificateAuthorities
 from twisted.internet import ssl
+
+import sisock
 
 # The port for our webserver that grafana connects to.
 klein_port = 5000
@@ -113,14 +114,14 @@ class GrafanaSisockDatasrc(object):
 
         # Get list of all data nodes connected to sisock.
         data_node = yield \
-          self._session.call(sisock.uri("consumer.get_data_node"))
+          self._session.call(sisock.base.uri("consumer.get_data_node"))
         print("Found %d data node%s: getting fields." % (len(data_node),
               "s" if len(data_node) != 1 else ""))
 
         for dn in data_node:
             # Get all fields for this data_node. We search for all times (start
             # = 1, end = 0) to get all possible fields.
-            f = yield self._session.call(sisock.uri("consumer." + dn["name"] + \
+            f = yield self._session.call(sisock.base.uri("consumer." + dn["name"] + \
                                                     ".get_fields"), 1, 0)
             self._field[dn["name"]] = f
         self._remake_json_field_list()
@@ -128,10 +129,10 @@ class GrafanaSisockDatasrc(object):
         # Subscribe to notifications from sisock hub.
         try:
             yield self._session.subscribe(self._data_node_added,
-                      sisock.uri("consumer.data_node_added"))
+                      sisock.base.uri("consumer.data_node_added"))
             print("Subscribed to consumer.data_node_added.")
             yield self._session.subscribe(self._data_node_subtracted,
-                      sisock.uri("consumer.data_node_subtracted"))
+                      sisock.base.uri("consumer.data_node_subtracted"))
             print("Subscribed to consumer.data_node_subtracted.")
         except Exception as e:
             print("Could not subscribe to topic: %s." % e)
@@ -162,7 +163,7 @@ class GrafanaSisockDatasrc(object):
         print("Data node \"%s\" added: adding its fields." % \
               (data_node["name"]))
         self._field[data_node["name"]] = yield \
-           self._session.call(sisock.uri("consumer." + data_node["name"] + \
+           self._session.call(sisock.base.uri("consumer." + data_node["name"] + \
                                          ".get_fields"), 1, 0)
         self._remake_json_field_list()
 
@@ -208,7 +209,7 @@ class GrafanaSisockDatasrc(object):
         res = []
         for data_node, field in poll.items():
             # Request data from sisock.
-            data = yield self._session.call(sisock.uri("consumer." + \
+            data = yield self._session.call(sisock.base.uri("consumer." + \
                                                        data_node + ".get_data"),
                                             field, t_start, t_end,
                                             min_stride=interval)
@@ -267,7 +268,7 @@ def main(reactor):
         transports=[
             {
                 u"type": u"websocket",
-                u"url": sisock.WAMP_URI,
+                u"url": sisock.base.WAMP_URI,
                 u"endpoint": {
                   u"type": u"tcp",
                   u"host": u"sisock_crossbar",
@@ -282,7 +283,7 @@ def main(reactor):
                 u"secret": u"yW4V2T^bPD&rGFwy"
             }
         },
-        realm=sisock.REALM,
+        realm=sisock.base.REALM,
     )
 
     # Create our klein webserver, and then our datasource (which also connects

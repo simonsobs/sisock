@@ -43,6 +43,13 @@ We'll first create a network to connect all the containers, we'll call it
 $ docker network create --driver bridge sisock-net
 ```
 
+Next, we'll build the sisock container image. This will form the base image for
+all containers requiring sisock. From the top of the repo, run:
+
+```bash
+$ docker build -t sisock .
+```
+
 Next, we'll create a container for grafana, this also installs the simple
 json-datasource plugin and a plotly-panel plugin for some more plotting
 features.
@@ -57,34 +64,58 @@ Add the grafana container to sisock-net:
 $ docker network connect sisock-net sisock_grafana
 ```
 
-From within this repo, we'll build the crossbar server (this assumes you've
-setup the certs/keys for crossbar already.)
+The `components/` directory contains each of the components we'll need to build
+a container for, starting with the `hub`, which also starts the crossbar router.
+Before we proceed, be sure to generate the required TLS certificates in
+`components/hub/.crossbar`. See the README there for details.
+
+### Building with `make`
+We can use the provided `Makefile` to build all the Docker images, simply run:
 
 ```bash
+$ make docker
+```
+
+### Building Individually
+
+From within `components/hub` we'll build the crossbar router (the router
+automatically starts up the hub component when it begins):
+
+```bash
+$ cd components/hub/
 $ docker build -t sisock_crossbar .
-$ docker run -d --name=sisock_crossbar --network sisock-net sisock_crossbar
 ```
 
-Next we build the `grafana_http_json.py` server's container:
+Next we build the `grafana_http_json.py` component's container:
 
 ```bash
-$ docker build -t sisock_grafana_http -f Dockerfile_grafana_http_json .
-$ docker run -d --name=sisock_grafana_http --network sisock-net sisock_grafana_http
+$ cd components/grafana_server/
+$ docker build -t sisock_grafana_http .
 ```
 
-Now for the data servers, first the weather server:
+Now for the data node servers, first the weather server:
 
 ```bash
-$ docker build -t weather_server -f Dockerfile_weather_server .
-$ docker run --name=weather_server --network sisock-net -d weather_server
+$ cd components/data_node_servers/weather/
+$ docker build -t weather_server .
 ```
 
 Finally, the sensors server (note the needed host network for DNS resolution
 for apt-get'ing the `lm-sensors` package),
 
 ```bash
-$ docker build -t sensors_server --network=host -f Dockerfile_sensors_server .
-$ docker run --name=sensors_server --network sisock-net -d sensors_server
+$ cd components/data_node_servers/sensors/
+$ docker build -t sensors_server --network=host .
+```
+
+### Running the Containers
+We can run all four components' containers now:
+
+```bash
+$ docker run -d --name=sisock_crossbar --network sisock-net sisock_crossbar
+$ docker run -d --name=sisock_grafana_http --network sisock-net sisock_grafana_http
+$ docker run -d --name=weather_server --network sisock-net weather_server
+$ docker run -d --name=sensors_server --network sisock-net sensors_server
 ```
 
 Your running containers should now look something like this:
@@ -114,3 +145,10 @@ $ docker container stop sensors_server weather_server sisock_grafana_http sisock
 $ docker container rm sensors_server weather_server sisock_grafana_http sisock_crossbar sisock_grafana
 $ docker network rm sisock-net
 ```
+
+At this point we need to delete the built images. You can either run `make clean` or:
+```bash
+$ docker image rm sensors_server weather_server sisock_grafana_http sisock_crossbar sisock_grafana
+```
+
+This is included in the `Makefile`, as it is commonly done during testing.

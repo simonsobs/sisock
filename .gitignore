@@ -1,6 +1,7 @@
 # TLS related crossbar files
-.crossbar/*.pem
-.crossbar/key*
+*.pem
+key.priv
+key.pub
 
 # Temporary files
 *.swp
