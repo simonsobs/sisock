@@ -9,6 +9,7 @@ services:
     build: ./components/hub/
     ports:
      - "8080:8080"
+     - "8001:8001"
     environment:
          - PYTHONUNBUFFERED=1
     depends_on:
@@ -32,6 +33,39 @@ services:
     image: "sensors_server"
     container_name: sensors_server
     build: ./components/data_node_servers/sensors/
+    depends_on:
+      - "sisock_crossbar"
+      - "sisock_grafana_http"
+  ls372_measurement:
+    image: "ls372_measurement"
+    container_name: ls372_measurement
+    build: ./components/data_node_servers/thermometry/
+    environment:
+        TARGET: measurement # match to instance-id of agent to monitor, used for data feed subscription
+        NAME: 'LSA22HA' # will appear in sisock a front of field name
+        DESCRIPTION: "LS372 measuring test board in the lab."
+    depends_on:
+      - "sisock_crossbar"
+      - "sisock_grafana_http"
+  ls372_control:
+    image: "ls372_control"
+    container_name: ls372_control
+    build: ./components/data_node_servers/thermometry/
+    environment:
+        TARGET: control # match to instance-id of agent to monitor, used for data feed subscription
+        NAME: 'LSA22YG' # will appear in sisock a front of field name
+        DESCRIPTION: "LS372 simulating control unit in the lab."
+    depends_on:
+      - "sisock_crossbar"
+      - "sisock_grafana_http"
+  ls240_monitor:
+    image: "ls240_monitor"
+    container_name: ls240_monitor
+    build: ./components/data_node_servers/thermometry/
+    environment:
+        TARGET: test240 # match to instance-id of agent to monitor, used for data feed subscription
+        NAME: 'LSA21OQ' # will appear in sisock a front of field name
+        DESCRIPTION: "LS240 unit in the lab."
     depends_on:
       - "sisock_crossbar"
       - "sisock_grafana_http"

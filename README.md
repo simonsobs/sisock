@@ -90,7 +90,12 @@ To shutdown and cleanup, run:
 
 ```bash
 $ docker-compose down
-$ make clean
+```
+
+If you'd like to remove the images as well run:
+
+```bash
+$ docker-compose down --rmi all
 ```
 
 This will not stop grafana or remove `sisock-net`. To do so:
