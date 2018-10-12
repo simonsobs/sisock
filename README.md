@@ -1,7 +1,7 @@
 # sisock
 Engine for Simons Observatory data serving through websockets.
 
-![Diagram of stuff](doc/diagram.png)
+![Diagram of stuff](docs/_static/diagram.png)
 
 ## Requirements
 * python3, crossbar.io

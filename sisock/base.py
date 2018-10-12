@@ -9,17 +9,13 @@ Classes
 =======
 
 .. autosummary::
-    :toctree: generated/
-
-    DataNodeServer
+    sisock.base.DataNodeServer
 
 Functions
 =========
 
 .. autosummary::
-   :toctree: generated/
-
-   uri
+   sisock.base.uri
 
 Constants
 =========
