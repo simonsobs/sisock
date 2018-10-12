@@ -41,7 +41,7 @@ from twisted.internet.defer import inlineCallbacks, returnValue
 WAMP_USER   = u"server"
 WAMP_SECRET = u"Q5#x4%HCmgTsS!Pj"
 WAMP_URI    = u"wss://127.0.0.1:8080/ws"
-REALM       = u"sisock"
+REALM       = u"test_realm"
 BASE_URI        = u"org.simonsobservatory"
 
 def uri(s):
