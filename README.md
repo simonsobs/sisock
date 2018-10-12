@@ -64,10 +64,10 @@ Add the grafana container to sisock-net:
 $ docker network connect sisock-net sisock_grafana
 ```
 
-The `servers/` directory contains each of the servers we'll need to build a
-container for, starting with the crossbar server. Before we proceed, be sure to
-generate the required TLS certificates in `servers/hub/.crossbar`. See the
-README there for details.
+The `components/` directory contains each of the components we'll need to build
+a container for, starting with the `hub`, which also starts the crossbar router.
+Before we proceed, be sure to generate the required TLS certificates in
+`components/hub/.crossbar`. See the README there for details.
 
 ### Building with `make`
 We can use the provided `Makefile` to build all the Docker images, simply run:
@@ -78,24 +78,25 @@ $ make docker
 
 ### Building Individually
 
-From within `servers/hub` we'll build the crossbar server:
+From within `components/hub` we'll build the crossbar router (the router
+automatically starts up the hub component when it begins):
 
 ```bash
-$ cd servers/hub/
+$ cd components/hub/
 $ docker build -t sisock_crossbar .
 ```
 
-Next we build the `grafana_http_json.py` server's container:
+Next we build the `grafana_http_json.py` component's container:
 
 ```bash
-$ cd servers/grafana_server/
+$ cd components/grafana_server/
 $ docker build -t sisock_grafana_http .
 ```
 
-Now for the data servers, first the weather server:
+Now for the data node servers, first the weather server:
 
 ```bash
-$ cd servers/data_node_servers/weather/
+$ cd components/data_node_servers/weather/
 $ docker build -t weather_server .
 ```
 
@@ -103,12 +104,12 @@ Finally, the sensors server (note the needed host network for DNS resolution
 for apt-get'ing the `lm-sensors` package),
 
 ```bash
-$ cd servers/data_node_servers/sensors/
+$ cd components/data_node_servers/sensors/
 $ docker build -t sensors_server --network=host .
 ```
 
 ### Running the Containers
-We can run all four servers' containers now:
+We can run all four components' containers now:
 
 ```bash
 $ docker run -d --name=sisock_crossbar --network sisock-net sisock_crossbar
