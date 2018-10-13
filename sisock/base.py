@@ -1,35 +1,5 @@
 """
-================================================================================
 Sisock: serve Simons data over secure sockets (:mod:`sisock`)
-================================================================================
-
-.. currentmodule:: sisock
-
-Classes
-=======
-
-.. autosummary::
-    sisock.base.DataNodeServer
-
-Functions
-=========
-
-.. autosummary::
-   sisock.base.uri
-
-Constants
-=========
-
-:const:`WAMP_USER`
-    Username for servers/hub to connect to WAMP router.
-:const:`WAMP_SECRET`
-    Password for servers/hub to connect to WAMP router.
-:const:`WAMP_URI`
-    Address of WAMP router.
-:const:`REALM`
-    Realm in WAMP router to connect to.
-:const:`BASE_URI`
-    The lowest level URI for all pub/sub topics and RPC registrations.
 """
 
 import six
@@ -73,8 +43,9 @@ def sisock_to_unix_time(t):
 
     Returns
     -------
-    If `t` is positive, return `t`. If `t` is zero or negative, return
-    :math:`time.time() - t`.
+    unix_time : float
+        If `t` is positive, return `t`. If `t` is zero or negative, return
+        :math:`time.time() - t`.
     """
     if t > 0:
         return t
@@ -92,12 +63,6 @@ class DataNodeServer(ApplicationSession):
     description : string
         Each data node server inheriting this class must provide its own, human-
         readable description for consumers.
-
-    Methods
-    -------
-    onJoin
-    onConnect
-    onChallenge
     """
 
     name = None
@@ -206,24 +171,21 @@ class DataNodeServer(ApplicationSession):
 
         Returns
         -------
-        Two dictionaries, field and timeline, as defined below.
+        dictionary
+            Two dictionaries of dictionaries, as defined below.
 
-        field : dictionary
-            Each key is the name of a field, with a value that is a dictionary
-            containing the following entries.
-            - description : information about the field; can be `None`.
-            - timeline    : the name of the timeline this field follows.
-            - type        : one of "number", "string", "bool"
-            - units       : the physical units; can be `None`
-            The dictionary can be empty, indicating that no fields are
+            - field : the field name is the key, and the value is:
+                - description : information about the field; can be `None`.
+                - timeline : the name of the timeline this field follows.
+                - type : one of "number", "string", "bool"
+                - units : the physical units; can be `None`
+            - timeline : the field name is the key, and the value is:
+                - interval : the average interval, in seconds, between
+                  readings; if the readings are aperiodic, :obj:`None`.
+                - field : a list of field names associated with this timeline
+
+            The `field` dictionary can be empty, indicating that no fields are 
             available during the requested interval.
-
-        timeline : dictionary
-            Each key is the name of a dictionary, with a value that is a
-            dictionary containing the following entries.
-            - interval    : the average interval, in seconds, between readings;
-                            if the readings are aperiodic, :obj:`None`.
-            - field       : a list of field names associated with this timeline
         """
         raise RuntimeError("This method must be overriden.")
 
@@ -250,25 +212,27 @@ class DataNodeServer(ApplicationSession):
 
         Returns
         -------
-        On success, a dictionary is returned with two entries
-        - data : A dictionary with one entry per field:
-          - field_name : array containing the timestream of data.
-        - timeline : A dictionary with one entry per timeline:
-          - timeline_name : An dictionary with the following entries.
-            t               : an array containing the timestamps
-            finalized_until : the timestamp prior to which the presently
-                              requested data are guaranteed not to change; 
-                              :obj:`None` may be returned if all requested 
-                              data are finalized
+        dictionary
+            On success, a dictionary is returned with two entries.
 
-        If data are not available during the whole length requested, all
-        available data will be returend; if no data are available for a field,
-        or the field does not exist, its timestream will be an empty array.
-        Timelines will only be included if there is at least one field to which
-        it corresponds with available data. If no data are available for any of 
-        the fields, all arrays will be empty.
+            - data : A dictionary with one entry per field:
+                - field_name : array containing the timestream of data.
+            - timeline : A dictionary with one entry per timeline:
+                - timeline_name : An dictionary with the following entries.
+                - t : an array containing the timestamps
+                - finalized_until : the timestamp prior to which the presently
+                  requested data are guaranteed not to change; :obj:`None` may 
+                  be returned if all requested data are finalized
 
-        If the amount of data exceeds the data node server's pipeline allowance,
-        :obj:`False` will be returned.
+            If data are not available during the whole length requested, all
+            available data will be returend; if no data are available for a 
+            field, or the field does not exist, its timestream will be an empty 
+            array. Timelines will only be included if there is at least one 
+            field to which it corresponds with available data. If no data are 
+            available for any of the fields, all arrays will be empty.
+
+            If the amount of data exceeds the data node server's pipeline
+            allowance,
+            :obj:`False` will be returned.
         """
         raise RuntimeError("This method must be overriden.")
