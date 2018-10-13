@@ -1,5 +1,31 @@
 """
 Sisock: serve Simons data over secure sockets (:mod:`sisock`)
+
+.. currentmodule:: sisock
+
+Classes
+=======
+.. autosummary::
+    sisock.base.DataNodeServer
+
+Functions
+=========
+.. autosummary::
+   sisock.base.uri
+   sisock.base.sisock_to_unix_time
+
+Constants
+=========
+:const:`WAMP_USER`
+    Username for servers/hub to connect to WAMP router.
+:const:`WAMP_SECRET`
+    Password for servers/hub to connect to WAMP router.
+:const:`WAMP_URI`
+    Address of WAMP router.
+:const:`REALM`
+    Realm in WAMP router to connect to.
+:const:`BASE_URI`
+    The lowest level URI for all pub/sub topics and RPC registrations.
 """
 
 import six
