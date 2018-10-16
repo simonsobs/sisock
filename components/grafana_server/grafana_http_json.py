@@ -259,12 +259,28 @@ class GrafanaSisockDatasrc(object):
         return ret
 
 
+    @inlineCallbacks
     def _search(self, request):
         """Provide a list of available fields to grafana."""
         if self._session is None:
             request.setResponseCode(500)
             return b"No WAMP session\n"
         print("Web client requested /search.")
+
+        # Get list of all data nodes connected to sisock.
+        data_node = yield \
+          self._session.call(sisock.base.uri("consumer.get_data_node"))
+        print("Found %d data node%s: getting fields." % (len(data_node),
+              "s" if len(data_node) != 1 else ""))
+
+        for dn in data_node:
+            # Get all fields for this data_node. We search for all times (start
+            # = 1, end = 0) to get all possible fields.
+            f = yield self._session.call(sisock.base.uri("consumer." + dn["name"] + \
+                                                    ".get_fields"), 1, 0)
+            self._field[dn["name"]] = f
+        self._remake_json_field_list()
+
         return self._json_field_list
 
 
