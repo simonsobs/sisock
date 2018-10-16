@@ -18,6 +18,7 @@ from OpenSSL import crypto
 import numpy as np
 import pytz
 import six
+import txaio
 from twisted.internet.defer import inlineCallbacks, Deferred
 from twisted.internet.endpoints import SSL4ServerEndpoint
 from twisted.internet.endpoints import TCP4ServerEndpoint
@@ -102,6 +103,9 @@ class GrafanaSisockDatasrc(object):
         self._app.route(u"/search", branch=True)(self._search)
         self._app.route(u"/query", branch=True)(self._query)
 
+        # Logging
+        self.log = txaio.make_logger()
+
     @inlineCallbacks
     def _initialize(self, session, details):
         """This gets called once we successfully connect to sisock."""
@@ -166,12 +170,13 @@ class GrafanaSisockDatasrc(object):
            self._session.call(sisock.base.uri("consumer." + data_node["name"] + \
                                          ".get_fields"), 1, 0)
         self._remake_json_field_list()
+        self.log.debug("_json_field_list: {field_list}", field_list=self._json_field_list)
 
 
     def _data_node_subtracted(self, data_node):
         """Fired when the hub reports that a data node has disconnected from
         sisock."""
-        print("Data node \"%s\" added: removing its fields." % \
+        print("Data node \"%s\" removed: removing its fields." % \
               (data_node["name"]))
         try:
             del(self._field[data_node["name"]])
@@ -192,6 +197,7 @@ class GrafanaSisockDatasrc(object):
         # Parse out timing parameters for the data requested.
         content = yield request.content.read()
         req = json.loads(content)
+        self.log.debug("request: {request}", request=req)
         t_start = iso_to_unix_time(req["range"]["from"])
         t_end = iso_to_unix_time(req["range"]["to"])
         interval = grafana_time_units_to_seconds(req["interval"])
@@ -306,7 +312,6 @@ def main(reactor):
     comp_d = component.start(reactor)
 
     # When not using run() we also must start logging ourselves.
-    import txaio
     txaio.start_logging(level='info')
 
     # If the Component raises an exception we want to exit. Note that
