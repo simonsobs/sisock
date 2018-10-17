@@ -5,6 +5,7 @@ An example data node server.
 import glob
 import os
 import six
+import time
 
 from autobahn.twisted.component import Component, run
 from autobahn.twisted.util import sleep
@@ -113,6 +114,9 @@ class apex_weather(sisock.base.DataNodeServer):
 
 
 if __name__ == "__main__":
+    # Give time for crossbar server to start
+    time.sleep(5)
+
     # Because we're using a self-signed certificate, we need to tell Twisted
     # that it is OK to trust it.
     cert_fname = (".crossbar/server_cert.pem")

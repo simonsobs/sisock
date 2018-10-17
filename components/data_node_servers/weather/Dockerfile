@@ -11,4 +11,4 @@ WORKDIR /app
 ADD . /app
 
 # Run app.py when the container launches
-CMD ["python3", "server_example_weather.py"]
+CMD ["python3", "-u", "server_example_weather.py"]

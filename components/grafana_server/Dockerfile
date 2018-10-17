@@ -14,4 +14,4 @@ ADD . /app
 EXPOSE 5000
 
 # Run app.py when the container launches
-CMD ["python3", "grafana_http_json.py"]
+CMD ["python3", "-u", "grafana_http_json.py"]

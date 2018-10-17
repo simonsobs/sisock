@@ -15,4 +15,4 @@ RUN apt-get update
 RUN apt-get install -y lm-sensors
 
 # Run app.py when the container launches
-CMD ["python3", "server_example_sensors.py"]
+CMD ["python3", "-u", "server_example_sensors.py"]
