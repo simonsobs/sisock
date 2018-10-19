@@ -79,16 +79,27 @@ This attaches the `stdout` of all the containers to your terminal. This is
 helpful for debugging. However, if you'd like to background this, throw the
 `-d` flag.
 
-To shutdown and cleanup run:
-
-```bash
-$ docker-compose down
-```
-
 You'll need to configure the Grafana data source as the SimpleJson type with a
 URL of `http://sisock_grafana_http:5000`. The user defined bridge network,
 `sisock-net`, enables DNS resolution by container name, in this case
 `sisock_grafana_http` (as is defined in the `docker-compose.yaml` file.)
+
+#### Clean-up
+
+To shutdown and cleanup, run:
+
+```bash
+$ docker-compose down
+$ make clean
+```
+
+This will not stop grafana or remove `sisock-net`. To do so:
+
+```bash
+$ docker container stop sisock_grafana
+$ docker container rm sisock_grafana
+$ docker network rm sisock-net
+```
 
 ### Building and Running w/o Docker Compose
 If we want to build and run the containers separatly we can avoid use of Docker
