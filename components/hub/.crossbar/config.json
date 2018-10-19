@@ -10,7 +10,7 @@
             },
             "realms": [
                 {
-                    "name": "sisock",
+                    "name": "test_realm",
                     "roles": [
                         {
                             "name": "server",
@@ -41,6 +41,46 @@
                                     "allow": {
                                         "call": true,
                                         "register": true,
+                                        "publish": true,
+                                        "subscribe": true
+                                    },
+                                    "disclose": {
+                                        "caller": false,
+                                        "publisher": false
+                                    },
+                                    "cache": true
+                                }
+                            ]
+                        },
+                        {
+                            "name": "iocs_agent",
+                            "permissions": [
+                                {
+                                    "uri": "observatory.",
+                                    "match": "prefix",
+                                    "allow": {
+                                        "call": true,
+                                        "register": true,
+                                        "publish": true,
+                                        "subscribe": true
+                                    },
+                                    "disclose": {
+                                        "caller": false,
+                                        "publisher": false
+                                    },
+                                    "cache": true
+                                }
+                            ]
+                        },
+                        {
+                            "name": "iocs_controller",
+                            "permissions": [
+                                {
+                                    "uri": "observatory.",
+                                    "match": "prefix",
+                                    "allow": {
+                                        "call": true,
+                                        "register": false,
                                         "publish": true,
                                         "subscribe": true
                                     },
@@ -90,6 +130,19 @@
                             }
                         }
                     }
+                },
+                {
+                    "type": "websocket",
+                    "endpoint": {
+                        "type": "tcp",
+                        "port": 8001
+                    },
+                    "auth": {
+                        "anonymous": {
+                            "type": "static",
+                            "role": "server"
+                        }
+                    }
                 }
             ]
         },
@@ -104,7 +157,7 @@
                 {
                     "type": "class",
                     "classname": "hub.hub",
-                    "realm": "sisock",
+                    "realm": "test_realm",
                     "transport": {
                         "type": "websocket",
                         "endpoint": {
