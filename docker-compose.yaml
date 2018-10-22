@@ -1,0 +1,47 @@
+version: '3'
+services:
+  sisock:
+    image: "sisock"
+    build: .
+  sisock_crossbar:
+    image: "sisock_crossbar"
+    container_name: sisock_crossbar
+    build: ./components/hub/
+    ports:
+     - "8080:8080"
+    environment:
+         - PYTHONUNBUFFERED=1
+    depends_on:
+      - "sisock"
+  sisock_grafana_http:
+    image: "sisock_grafana_http"
+    container_name: sisock_grafana_http
+    build: ./components/grafana_server/
+    ports:
+     - "5000:5000"
+    depends_on:
+      - "sisock_crossbar"
+  weather_server:
+    image: "weather_server"
+    container_name: weather_server
+    build: ./components/data_node_servers/weather/
+    depends_on:
+      - "sisock_crossbar"
+      - "sisock_grafana_http"
+  sensors_server:
+    image: "sensors_server"
+    container_name: sensors_server
+    build: ./components/data_node_servers/sensors/
+    depends_on:
+      - "sisock_crossbar"
+      - "sisock_grafana_http"
+  #grafana/grafana:
+  #  ports:
+  #    - "3000:3000"
+  #  environment:
+  #    - GF_INSTALL_PLUGINS=grafana-simple-json-datasource, natel-plotly-panel
+
+networks:
+  default:
+    external:
+      name: sisock-net

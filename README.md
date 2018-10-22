@@ -32,22 +32,21 @@ Engine for Simons Observatory data serving through websockets.
 * <tt>grafana_http_json.py</tt> &mdash; A webserver that is a <tt>grafana</tt> data source that forwards data from <tt>sisock</tt>.
 
 ## Running with Docker
-The demo for showing off sisock communication in grafana depends on Docker.
-You'll need Docker installed for the following to work. We'll be creating five
-containers in total.
+sisock + grafana are run in Docker containers.
 
+### Dependencies
+
+* Docker
+* Docker Compose
+
+(See below if you'd like to not use `docker-compose`.)
+
+### Building with Docker Compose
 We'll first create a network to connect all the containers, we'll call it
 `sisock-net`.
 
 ```bash
 $ docker network create --driver bridge sisock-net
-```
-
-Next, we'll build the sisock container image. This will form the base image for
-all containers requiring sisock. From the top of the repo, run:
-
-```bash
-$ docker build -t sisock .
 ```
 
 Next, we'll create a container for grafana, this also installs the simple
@@ -58,10 +57,60 @@ features.
 $ docker run -d -p 3000:3000 --name=sisock_grafana -e "GF_INSTALL_PLUGINS=grafana-simple-json-datasource, natel-plotly-panel" grafana/grafana
 ```
 
+Note: You could include this in the `docker-compose` configuration, but since
+we'll be customizing it from the web interface we want to avoid redeploying it
+all the time.
+
 Add the grafana container to sisock-net:
 
 ```bash
 $ docker network connect sisock-net sisock_grafana
+```
+
+Now we'll bring up the containers using `docker-compose`:
+
+```bash
+$ docker-compose up
+```
+
+This will also build the containers if they aren't built already.
+
+This attaches the `stdout` of all the containers to your terminal. This is
+helpful for debugging. However, if you'd like to background this, throw the
+`-d` flag.
+
+You'll need to configure the Grafana data source as the SimpleJson type with a
+URL of `http://sisock_grafana_http:5000`. The user defined bridge network,
+`sisock-net`, enables DNS resolution by container name, in this case
+`sisock_grafana_http` (as is defined in the `docker-compose.yaml` file.)
+
+#### Clean-up
+
+To shutdown and cleanup, run:
+
+```bash
+$ docker-compose down
+$ make clean
+```
+
+This will not stop grafana or remove `sisock-net`. To do so:
+
+```bash
+$ docker container stop sisock_grafana
+$ docker container rm sisock_grafana
+$ docker network rm sisock-net
+```
+
+### Building and Running w/o Docker Compose
+If we want to build and run the containers separatly we can avoid use of Docker
+Compose. You still need to create the sisock-net network and run the grafana
+container as done above.
+
+Then, we'll build the sisock container image. This will form the base image for
+all containers requiring sisock. From the top of the repo, run:
+
+```bash
+$ docker build -t sisock .
 ```
 
 The `components/` directory contains each of the components we'll need to build
@@ -69,14 +118,14 @@ a container for, starting with the `hub`, which also starts the crossbar router.
 Before we proceed, be sure to generate the required TLS certificates in
 `components/hub/.crossbar`. See the README there for details.
 
-### Building with `make`
+#### Building with `make`
 We can use the provided `Makefile` to build all the Docker images, simply run:
 
 ```bash
 $ make docker
 ```
 
-### Building Individually
+#### Building Individually
 
 From within `components/hub` we'll build the crossbar router (the router
 automatically starts up the hub component when it begins):
@@ -108,7 +157,7 @@ $ cd components/data_node_servers/sensors/
 $ docker build -t sensors_server --network=host .
 ```
 
-### Running the Containers
+#### Running the Containers
 We can run all four components' containers now:
 
 ```bash
@@ -137,7 +186,7 @@ URL of `http://sisock_grafana_http:5000`. The user defined bridge network,
 sisock-net, enables DNS resolution by container name, in this case
 `sisock_grafana_http`.
 
-### Clean-up
+#### Clean-up
 To clean up the Docker containers when done with the demo:
 
 ```

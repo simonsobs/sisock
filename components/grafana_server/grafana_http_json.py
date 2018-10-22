@@ -10,6 +10,7 @@ returns the result to grafana.
 """
 
 from autobahn.twisted.component import Component
+from autobahn.wamp.exception import ApplicationError
 import dateutil
 import dateutil.parser
 import json
@@ -19,6 +20,8 @@ import numpy as np
 import pytz
 import six
 import txaio
+import time
+import sys
 from twisted.internet.defer import inlineCallbacks, Deferred
 from twisted.internet.endpoints import SSL4ServerEndpoint
 from twisted.internet.endpoints import TCP4ServerEndpoint
@@ -117,8 +120,23 @@ class GrafanaSisockDatasrc(object):
         self._field = {}
 
         # Get list of all data nodes connected to sisock.
-        data_node = yield \
-          self._session.call(sisock.base.uri("consumer.get_data_node"))
+        retries = 6
+        blocked = True
+        while blocked:
+            try:
+                data_node = yield \
+                  self._session.call(sisock.base.uri("consumer.get_data_node"))
+                print('Successfully called {}'.format(sisock.base.uri("consumer.get_data_node")))
+                blocked = False
+            except ApplicationError as exc:
+                if retries == 0:
+                    raise exc
+                    sys.exit("It seems the sisock hub hasn't started properly. \n \
+                              Check that the crossbar server is running and try again.")
+                retries -= 1
+                print("{} procedure not yet registered, waiting for sisock hub to finish startup".format(sisock.base.uri("consumer.get_data_node")))
+                time.sleep(5)
+
         print("Found %d data node%s: getting fields." % (len(data_node),
               "s" if len(data_node) != 1 else ""))
 

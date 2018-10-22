@@ -147,6 +147,9 @@ class sensors(sisock.base.DataNodeServer):
 
 
 if __name__ == "__main__":
+    # Give time for crossbar server to start
+    time.sleep(5)
+
     # Because we're using a self-signed certificate, we need to tell Twisted
     # that it is OK to trust it.
     cert_fname = (".crossbar/server_cert.pem")
