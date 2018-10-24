@@ -167,6 +167,15 @@ $ docker run -d --name=weather_server --network sisock-net weather_server
 $ docker run -d --name=sensors_server --network sisock-net sensors_server
 ```
 
+If you want to run the crossbar server and have locally run programs (such as
+OCS agents) interact with it (rather than exclusively those in other
+containers), you'll need to expose the ports. You can do so by adding the `-p`
+flag, for example:
+
+```bash
+$ docker run -d --name=sisock_crossbar -p 8001:8001 -p 8080:8080 --network sisock-net sisock_crossbar
+```
+
 Your running containers should now look something like this:
 
 ```bash
@@ -177,6 +186,13 @@ fa8e22a9371a        weather_server        "python3 server_exam…"   7 minutes a
 15487116c7d8        sisock_grafana_http   "python3 grafana_htt…"   12 minutes ago      Up 12 minutes       5000/tcp                 sisock_grafana_http
 db4ce214e733        sisock_crossbar       "crossbar start"         18 minutes ago      Up 18 minutes       8080/tcp                 sisock_crossbar
 28c49db6220f        grafana/grafana       "/run.sh"                12 days ago         Up 5 hours          0.0.0.0:3000->3000/tcp   sisock_grafana
+```
+
+If you exposed the ports for the `sisock_crossbar` server, you should see `->8001/tcp` and `->8080/tcp` under `PORTS`.
+
+```bash
+CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS              PORTS                                            NAMES
+32ebe256fc98        sisock_crossbar     "crossbar start"    2 seconds ago       Up 1 second         0.0.0.0:8001->8001/tcp, 0.0.0.0:8080->8080/tcp   sisock_crossbar
 ```
 
 Navigating to `localhost:3000` will get you to grafana. 
