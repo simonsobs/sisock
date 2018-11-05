@@ -1,4 +1,4 @@
-version: '3'
+version: '3.2'
 services:
   sisock:
     image: "sisock"
@@ -26,6 +26,18 @@ services:
     image: "weather_server"
     container_name: weather_server
     build: ./components/data_node_servers/weather/
+    depends_on:
+      - "sisock_crossbar"
+      - "sisock_grafana_http"
+  radiometer_server:
+    image: "radiometer_server"
+    container_name: radiometer_server
+    build: ./components/data_node_servers/radiometer/
+    volumes:
+      - type: "bind"
+        source: "/var/www/Skymonitor"
+        target: "/data"
+        read_only: true
     depends_on:
       - "sisock_crossbar"
       - "sisock_grafana_http"
