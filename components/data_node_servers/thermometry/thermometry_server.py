@@ -39,7 +39,7 @@ from autobahn.twisted.wamp import ApplicationSession, ApplicationRunner
 import sisock
 
 
-class Component(sisock.base.DataNodeServer):
+class thermometry_server(sisock.base.DataNodeServer):
     """
     An application component that subscribes and receives events
     of no payload and of complex payload, and stops after 5 seconds.
@@ -64,26 +64,30 @@ class Component(sisock.base.DataNodeServer):
     def after_onJoin(self, details):
         print("session attached")
 
-        print('targeting observatory.{}.data'.format(self.target))
+        print('targeting observatory.{}.feeds.temperatures'.format(self.target))
 
-        def cache_data(a):
+        def cache_data(subscription_message):
             """Cache data from the LS372 Agent.
 
             Args:
-                a (dict): Dictionary of data from LS372_Agent.py
+                subscription_message (tuple): Data from the OCS subscription feed.
+                                              See OCS Feed documentation for
+                                              message structure.
 
             """
+            message, feed_data = subscription_message
+
             # Check we're a DataNodeServer for the correct Agent.
-            if a['agent_address'] == 'observatory.{}'.format(self.target):
-                for channel in a['data'].keys():
+            if feed_data['agent_address'] == 'observatory.{}'.format(self.target):
+                for channel in message.keys():
                     channel_name = channel.lower().replace(' ', '_')
 
                     if channel_name not in self.data.keys():
                         self.data[channel_name] = {"time": [], "data": []}
 
                     # Cache latest data point.
-                    self.data[channel_name]['time'].append(a['data'][channel][0])
-                    self.data[channel_name]['data'].append(a['data'][channel][1])
+                    self.data[channel_name]['time'].append(message[channel][0])
+                    self.data[channel_name]['data'].append(message[channel][1])
 
                     # Clear front entry if older than an hour.
                     if time.time() - self.data[channel_name]['time'][0] > 3600:
@@ -94,7 +98,7 @@ class Component(sisock.base.DataNodeServer):
                 # print("Got event: {}".format(a))
                 # print("data: {}".format(self.data))
 
-        yield self.subscribe(cache_data, u'observatory.{}.data'.format(self.target))
+        yield self.subscribe(cache_data, u'observatory.{}.feeds.temperatures'.format(self.target))
 
     def onDisconnect(self):
         print("disconnected")
@@ -168,6 +172,9 @@ class Component(sisock.base.DataNodeServer):
 
 
 if __name__ == '__main__':
+    # Give time for crossbar server to start
+    time.sleep(5)
+
     # Check variables setup when creating the Docker container.
     required_env = ['TARGET', 'NAME', 'DESCRIPTION']
 
@@ -182,4 +189,4 @@ if __name__ == '__main__':
     # When running locally, not in a container.
     # runner = ApplicationRunner(u'ws://127.0.0.1:8001/ws', u'test_realm')
     runner = ApplicationRunner(u'ws://sisock_crossbar:8001/ws', u'test_realm')
-    runner.run(Component(ComponentConfig(u'test_realm', {}), name=environ['NAME'], description=environ['DESCRIPTION'], target=environ['TARGET']))
+    runner.run(thermometry_server(ComponentConfig(u'test_realm', {}), name=environ['NAME'], description=environ['DESCRIPTION'], target=environ['TARGET']))
