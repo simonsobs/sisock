@@ -49,17 +49,32 @@ We'll first create a network to connect all the containers, we'll call it
 $ docker network create --driver bridge sisock-net
 ```
 
-Next, we'll create a container for grafana, this also installs the simple
-json-datasource plugin and a plotly-panel plugin for some more plotting
+Next, we'll setup the grafana container. Since we'll be configuring grafana and
+don't want to lose any information if we remove the container we'll setup
+persistent storage using a Docker volume.
+
+```bash
+docker volume create grafana-storage
+```
+
+Now we can create a container for grafana. This also installs the simple
+json-datasource plugin and a plotly-panel plugin for some extra plotting
 features.
 
 ```bash
-$ docker run -d -p 3000:3000 --name=sisock_grafana -e "GF_INSTALL_PLUGINS=grafana-simple-json-datasource, natel-plotly-panel" grafana/grafana
+$ docker run -d -p 3000:3000 --name=sisock_grafana -v grafana-storage:/var/lib/grafana -e "GF_INSTALL_PLUGINS=grafana-simple-json-datasource, natel-plotly-panel" grafana/grafana
 ```
 
-Note: You could include this in the `docker-compose` configuration, but since
-we'll be customizing it from the web interface we want to avoid redeploying it
-all the time.
+> Note: The persistant storage keeps the grafana database and plugins. If you
+> ever need to rebuild this container you should not throw the `-e` flag, as it
+> will cause the container to crash when trying to reinstall the plugins over the
+> ones already in the volume. This is likely a bug with grafana's provided Docker
+> installation.
+
+> Note: You could include this in the `docker-compose` configuration, but it
+> doesn't really need to be brought down when you redeploy updates to parts of
+> `sisock`, and so can be kept running. The above note also makes it difficult to
+> provide a usable docker-compose config that handles the plugins.
 
 Add the grafana container to sisock-net:
 
@@ -104,6 +119,13 @@ This will not stop grafana or remove `sisock-net`. To do so:
 $ docker container stop sisock_grafana
 $ docker container rm sisock_grafana
 $ docker network rm sisock-net
+```
+
+Furthermore, if you really don't want your saved grafana configuration, you can
+remove the grafana-storage container:
+
+```bash
+$ docker volume rm grafana-storage
 ```
 
 ### Building and Running w/o Docker Compose
