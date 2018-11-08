@@ -5,17 +5,23 @@ Notes:
     * This server has a single field, 'pwv'.
     * It reads the data from disk on every get_data call, no caching.
     * It uses open and readlines in a non-threadsafe way.
-    * It does not implement a min_stride, or maximum number of data points
-      returned.
-    * It requires a bindmount to /data/.
+    * It does not implement a min_stride
+    * It does implement a maximum number of data points returned, through the
+      MAX_POINTS environment variable (optional).
+    * It requires a bindmount, mounting the data on the host to /data/ in the
+      container.
 """
 
 import os
 import six
 import time
 import datetime
+import numpy as np
 
-from autobahn.twisted.wamp import ApplicationRunner
+from os import environ
+
+from autobahn.wamp.types import ComponentConfig
+from autobahn.twisted.wamp import ApplicationSession, ApplicationRunner
 from twisted.internet._sslverify import OpenSSLCertificateAuthorities
 from twisted.internet.ssl import CertificateOptions
 from OpenSSL import crypto
@@ -129,11 +135,12 @@ def julian_day_year_to_unixtime(day, year):
     return unixtime
 
 
-def _read_data_from_disk(file_list):
+def _read_data_from_disk(file_list, max_points=None):
     """Do the actual I/O. Meant to be called by blockingCallFromThread.
 
     Args:
         file_list (list): list of tuples with (file, year)
+        max_points (int): maximum number of points to return per query
 
     Returns:
         dict: properly formatted dict for sisock to pass to grafana
@@ -165,20 +172,29 @@ def _read_data_from_disk(file_list):
 
                 i += 1
 
+    if max_points is not None:
+        if max_points < len(_data['data']['pwv']):
+            limiter = range(0, len(_data['data']['pwv']), int(len(_data['data']['pwv'])/max_points))
+            _data['data']['pwv'] = np.array(_data['data']['pwv'])[limiter].tolist()
+            _data['timeline']['pwv']['t'] = np.array(_data['timeline']['pwv']['t'])[limiter].tolist()
+            _data['timeline']['pwv']['finalized_until'] = _data['timeline']['pwv']['t'][-1]
+
     return _data
 
 
-class apex_weather(sisock.base.DataNodeServer):
-    """An example data node server, serving historic data.
 
-    This example serves APEX weather data over a couple of weeks of July 2017
-    from simple text files.
+class radiometer_server(sisock.base.DataNodeServer):
+    """A DataNodeServer serving radiometer data from the UCSC radiometer.
 
     Inhereits from :class:`sisock.base.data_node_server`.
     """
-    # Here we set the name of this data node server.
-    name = "ucsc_radiometer"
-    description = "PWV readings from the UCSC radiometer."
+    def __init__(self, config, max_points=None):
+        ApplicationSession.__init__(self, config)
+        self.max_points = max_points
+
+        # Here we set the name of this data node server.
+        self.name = "ucsc_radiometer"
+        self.description = "PWV readings from the UCSC radiometer."
 
     def get_data(self, field, start, end, min_stride=None):
         """Over-riding the parent class prototype: see the parent class for the
@@ -194,7 +210,7 @@ class apex_weather(sisock.base.DataNodeServer):
         # data = threads.blockingCallFromThread(reactor, _read_data_from_disk, (file_list))
         file_list = _build_file_list(start, end)
         print('Reading data from disk from {start} to {end}.'.format(start=start, end=end))
-        data = _read_data_from_disk(file_list)
+        data = _read_data_from_disk(file_list, max_points=self.max_points)
         # print(data)
 
         return data
@@ -238,6 +254,19 @@ if __name__ == "__main__":
 
     opt = CertificateOptions(trustRoot=OpenSSLCertificateAuthorities([cert]))
 
+    # Check variables setup when creating the Docker container.
+    expected_env = ['MAX_POINTS']
+
+    for var in expected_env:
+        try:
+            environ[var]
+            print("Found environment variable {} with value of {}.".format(var, environ[var]))
+        except KeyError:
+            environ[var] = None
+            print("Environment variable {} not provided. \
+                  Setting to None and proceeding.".format(var))
+
     # Start our component.
     runner = ApplicationRunner('wss://sisock_crossbar:8080/ws', sisock.base.REALM, ssl=opt)
-    runner.run(apex_weather)
+    runner.run(radiometer_server(ComponentConfig(sisock.base.REALM, {}),
+                                 max_points=int(environ['MAX_POINTS'])))
