@@ -4,7 +4,6 @@ A DataNodeServer which serves UCSC Radiometer data from the ACT site.
 Notes:
     * This server has a single field, 'pwv'.
     * It reads the data from disk on every get_data call, no caching.
-    * It uses open and readlines in a non-threadsafe way.
     * It does not implement a min_stride
     * It does implement a maximum number of data points returned, through the
       MAX_POINTS environment variable (optional).
@@ -24,9 +23,8 @@ from autobahn.wamp.types import ComponentConfig
 from autobahn.twisted.wamp import ApplicationSession, ApplicationRunner
 from twisted.internet._sslverify import OpenSSLCertificateAuthorities
 from twisted.internet.ssl import CertificateOptions
+from twisted.internet.defer import inlineCallbacks, returnValue
 from OpenSSL import crypto
-
-# from twisted.internet import threads, reactor
 
 import sisock
 
@@ -182,6 +180,13 @@ def _read_data_from_disk(file_list, max_points=None):
     return _data
 
 
+@inlineCallbacks
+def _get_data_blocking(start, end, max_points):
+    file_list = _build_file_list(start, end)
+    print('Reading data from disk from {start} to {end}.'.format(start=start, end=end))
+    data = yield _read_data_from_disk(file_list, max_points=max_points)
+    returnValue(data)
+
 
 class radiometer_server(sisock.base.DataNodeServer):
     """A DataNodeServer serving radiometer data from the UCSC radiometer.
@@ -206,12 +211,7 @@ class radiometer_server(sisock.base.DataNodeServer):
         start = sisock.base.sisock_to_unix_time(start)
         end = sisock.base.sisock_to_unix_time(end)
 
-        # file_list = threads.blockingCallFromThread(reactor, _build_file_list, (start, end))
-        # data = threads.blockingCallFromThread(reactor, _read_data_from_disk, (file_list))
-        file_list = _build_file_list(start, end)
-        print('Reading data from disk from {start} to {end}.'.format(start=start, end=end))
-        data = _read_data_from_disk(file_list, max_points=self.max_points)
-        # print(data)
+        data = _get_data_blocking(start, end, self.max_points)
 
         return data
 
