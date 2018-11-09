@@ -24,6 +24,7 @@ from autobahn.twisted.wamp import ApplicationSession, ApplicationRunner
 from twisted.internet._sslverify import OpenSSLCertificateAuthorities
 from twisted.internet.ssl import CertificateOptions
 from twisted.internet.defer import inlineCallbacks, returnValue
+from twisted.internet import threads
 from OpenSSL import crypto
 
 import sisock
@@ -182,9 +183,20 @@ def _read_data_from_disk(file_list, max_points=None):
 
 @inlineCallbacks
 def _get_data_blocking(start, end, max_points):
-    file_list = _build_file_list(start, end)
+    """Read data from disk with proper threading for use with twisted.
+
+    Args:
+        start (float): unix timestamp for start of data range
+        end (float): unix timestamp for end of data range
+        max_points (int): maximum number of points to be returned
+
+    Returns:
+        dict: See sisock.base.DataNodeServer.get_data for details
+
+    """
+    file_list = yield threads.deferToThread(_build_file_list, start, end)
     print('Reading data from disk from {start} to {end}.'.format(start=start, end=end))
-    data = yield _read_data_from_disk(file_list, max_points=max_points)
+    data = yield threads.deferToThread(_read_data_from_disk, file_list, max_points=max_points)
     returnValue(data)
 
 
@@ -234,10 +246,6 @@ class radiometer_server(sisock.base.DataNodeServer):
 
         _timeline['pwv'] = {'interval': 60.48,
                             'field': ['pwv']}
-
-        # Debug printing. Do NOT leave on in production.
-        # print("_timeline: {}".format(_timeline))
-        # print("_field: {}".format(_field))
 
         return _field, _timeline
 
