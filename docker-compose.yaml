@@ -41,6 +41,20 @@ services:
     depends_on:
       - "sisock_crossbar"
       - "sisock_grafana_http"
+  apex_weather_server:
+    image: "apex_weather_server"
+    container_name: apex_weather_server
+    build: ./components/data_node_servers/apex_weather/
+    volumes:
+      - type: "bind"
+        source: "/var/www/apex_weather"
+        target: "/data"
+        read_only: true
+    environment:
+        MAX_POINTS: 1000
+    depends_on:
+      - "sisock_crossbar"
+      - "sisock_grafana_http"
   sensors_server:
     image: "sensors_server"
     container_name: sensors_server
