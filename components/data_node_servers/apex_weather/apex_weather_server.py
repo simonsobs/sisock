@@ -37,19 +37,53 @@ def _build_file_list(field, start, end):
               field
 
     """
+    t0 = time.time()
+
     file_list = []
 
-    for _file in glob.glob(DATA_LOCATION + 'targets/*{field}*.dat'.format(field=field)):
+    all_files = glob.glob(DATA_LOCATION + 'targets/*{field}*.dat'.format(field=field))
+    all_files.sort()
+
+    print("Processing {} files".format(len(all_files)))
+
+    # Add files once start falls in the range covered by a file, then keeping
+    # adding them until end falls in the range of another file. The
+    # construction is a bit strange, my original approach made ranges out of
+    # the ctimes in a file name and checked if the queried start/end times were
+    # in the ranges. While this approach was quick when run directly on the
+    # host, in a Docker container the performance suffered by a factor of
+    # ~3,500, for reasons I couldn't figure out.
+
+    add = False
+    done = False
+
+    for _file in all_files:
         file_info = os.path.split(_file)[1].replace(".dat", "").split("_")
-        if int(file_info[2]) > start and int(file_info[2]) < end:
+        file_start = int(file_info[2])
+        file_end = int(file_info[3])
+
+        if done:
+            break
+
+        if add is False:
+            if start >= file_start and start <= file_end:
+                add = True
+            if end >= file_start and end <= file_end:
+                done = True
+        else:
+            if end >= file_start and end <= file_end:
+                done = True
+
+        if add:
             file_list.append(_file)
 
     file_list.sort()
+    print("Built file list in {} seconds".format(time.time() - t0))
 
     return file_list
 
 
-def _read_data_from_disk(file_list, end, max_points=None):
+def _read_data_from_disk(file_list, start, end, max_points=None):
     """Do the I/O to get the data in file_list form disk up to end timestamp.
 
     Args:
@@ -61,18 +95,22 @@ def _read_data_from_disk(file_list, end, max_points=None):
         dict: properly formatted dict for sisock to pass to grafana
 
     """
-    _data = {'data': {}, 'timeline': {'pwv': {}}}
+    _data = {'data': {}, 'timeline': {}}
 
     for _file in file_list:
         file_info = os.path.split(_file)[1].replace(".dat", "").split("_")[1:]
         field = file_info[0]
+        print("Identified field {} for file {}".format(field, _file))
 
         # Initialize the field's data and timeline keys.
         if field not in _data['data'].keys():
+            print("Adding {} to data dictionary".format(field))
             _data['data'][field] = []
             _data['timeline'][field] = {}
             _data['timeline'][field]['t'] = []
             _data['timeline'][field]['finalized_until'] = None
+        else:
+            print("Key {} already in data dictionary".format(field))
 
         with open(_file, 'r') as f:
             for l in f.readlines():
@@ -81,7 +119,7 @@ def _read_data_from_disk(file_list, end, max_points=None):
                 data = float(line[1])
                 timestamp = float(line[0])
 
-                if timestamp < end:
+                if timestamp <= end and timestamp >= start:
                     _data['data'][field].append(data)
                     _data['timeline'][field]['t'].append(timestamp)
                     _data['timeline'][field]['finalized_until'] = timestamp
@@ -115,14 +153,17 @@ def _get_data_blocking(field, start, end, max_points):
     """
     file_list = []
     for f in field:
+        print("Building file_list for {}".format(f))
         try:
             file_list += yield threads.deferToThread(_build_file_list, f, start, end)
         except IOError:
             # Silently pass over a requested field that doesn't exist.
+            print("Could not build file list for {}".format(f))
             pass
 
+    print("Compiled file list {}".format(file_list))
     print('Reading data from disk from {start} to {end}.'.format(start=start, end=end))
-    data = yield threads.deferToThread(_read_data_from_disk, file_list, end, max_points=max_points)
+    data = yield threads.deferToThread(_read_data_from_disk, file_list, start, end, max_points=max_points)
     returnValue(data)
 
 
