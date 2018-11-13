@@ -181,25 +181,6 @@ def _read_data_from_disk(file_list, max_points=None):
     return _data
 
 
-@inlineCallbacks
-def _get_data_blocking(start, end, max_points):
-    """Read data from disk with proper threading for use with twisted.
-
-    Args:
-        start (float): unix timestamp for start of data range
-        end (float): unix timestamp for end of data range
-        max_points (int): maximum number of points to be returned
-
-    Returns:
-        dict: See sisock.base.DataNodeServer.get_data for details
-
-    """
-    file_list = yield threads.deferToThread(_build_file_list, start, end)
-    print('Reading data from disk from {start} to {end}.'.format(start=start, end=end))
-    data = yield threads.deferToThread(_read_data_from_disk, file_list, max_points=max_points)
-    returnValue(data)
-
-
 class radiometer_server(sisock.base.DataNodeServer):
     """A DataNodeServer serving radiometer data from the UCSC radiometer.
 
@@ -212,20 +193,6 @@ class radiometer_server(sisock.base.DataNodeServer):
         # Here we set the name of this data node server.
         self.name = "ucsc_radiometer"
         self.description = "PWV readings from the UCSC radiometer."
-
-    def get_data(self, field, start, end, min_stride=None):
-        """Over-riding the parent class prototype: see the parent class for the
-        API.
-
-        The `min_step` parameter is not implemented, and there is no bandwidth
-        throttling implemented.
-        """
-        start = sisock.base.sisock_to_unix_time(start)
-        end = sisock.base.sisock_to_unix_time(end)
-
-        data = _get_data_blocking(start, end, self.max_points)
-
-        return data
 
     def get_fields(self, start, end):
         """Over-riding the parent class prototype: see the parent class for the
@@ -248,6 +215,23 @@ class radiometer_server(sisock.base.DataNodeServer):
                             'field': ['pwv']}
 
         return _field, _timeline
+
+    def get_data_blocking(self, field, start, end, min_stride=None):
+        """Read data from disk with proper threading for use with twisted.
+
+        Args:
+            start (float): unix timestamp for start of data range
+            end (float): unix timestamp for end of data range
+            max_points (int): maximum number of points to be returned
+
+        Returns:
+            dict: See sisock.base.DataNodeServer.get_data for details
+        """
+        max_points = self.max_points
+        file_list = _build_file_list(start, end)
+        print('Reading data from disk from {start} to {end}.'.format(start=start, end=end))
+        return _read_data_from_disk(file_list, max_points=max_points)
+
 
 
 if __name__ == "__main__":

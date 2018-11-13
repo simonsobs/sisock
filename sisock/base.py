@@ -37,6 +37,7 @@ from autobahn.wamp.types import RegisterOptions
 from autobahn import wamp
 from twisted.python.failure import Failure
 from twisted.internet.defer import inlineCallbacks, returnValue
+from twisted.internet import threads
 
 WAMP_USER   = u"server"
 WAMP_SECRET = u"Q5#x4%HCmgTsS!Pj"
@@ -216,7 +217,60 @@ class DataNodeServer(ApplicationSession):
         raise RuntimeError("This method must be overriden.")
 
 
+    @inlineCallbacks
     def get_data(self, field, start, end, min_stride=None):
+        """Request data.
+
+        This method must be overriden by child classes.
+
+        Parameters
+        ----------
+        field      : list of strings
+                     The list of fields you want data from.
+        start      : float
+                     The start time for the data: if positive, interpret as a 
+                     UNIX time; if 0 or negative, begin `start` seconds ago.
+        end        : float
+                     The end time for the data, using the same format as
+                     `start`.
+        min_stride : float or :obj:`None`
+                     If not :obj:`None` then, if necessary, downsample data
+                     such that successive samples are separated by at least
+                     `min_stride` seconds.
+
+        Returns
+        -------
+        dictionary
+            On success, a dictionary is returned with two entries.
+
+            - data : A dictionary with one entry per field:
+                - field_name : array containing the timestream of data.
+            - timeline : A dictionary with one entry per timeline:
+                - timeline_name : An dictionary with the following entries.
+                - t : an array containing the timestamps
+                - finalized_until : the timestamp prior to which the presently
+                  requested data are guaranteed not to change; :obj:`None` may 
+                  be returned if all requested data are finalized
+
+            If data are not available during the whole length requested, all
+            available data will be returend; if no data are available for a 
+            field, or the field does not exist, its timestream will be an empty 
+            array. Timelines will only be included if there is at least one 
+            field to which it corresponds with available data. If no data are 
+            available for any of the fields, all arrays will be empty.
+
+            If the amount of data exceeds the data node server's pipeline
+            allowance,
+            :obj:`False` will be returned.
+        """
+        start = sisock_to_unix_time(start)
+        end = sisock_to_unix_time(end)
+
+        data = yield threads.deferToThread(self.get_data_blocking, field, start, end, min_stride)
+        returnValue(data)
+
+
+    def get_data_blocking(self, field, start, end, min_stride=None):
         """Request data.
 
         This method must be overriden by child classes.
