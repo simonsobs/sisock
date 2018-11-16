@@ -166,7 +166,7 @@ class DataNodeServer(ApplicationSession):
     def after_onJoin(self, details):
         """This method is called after onJoin() has finished.
 
-        This method can be overriden by child classes that need to run more code
+        This method can be overridden by child classes that need to run more code
         after the parent onJoin method has run.
 
         Parameters
@@ -186,7 +186,7 @@ class DataNodeServer(ApplicationSession):
         the data server is allowed to include fields with zero samples available
         in the interval.
 
-        This method must be overriden by child classes.
+        This method must be overridden by child classes.
 
         Parameters
         ----------
@@ -214,14 +214,16 @@ class DataNodeServer(ApplicationSession):
             The `field` dictionary can be empty, indicating that no fields are 
             available during the requested interval.
         """
-        raise RuntimeError("This method must be overriden.")
+        raise RuntimeError("This method must be overridden.")
 
 
     @inlineCallbacks
     def get_data(self, field, start, end, min_stride=None):
         """Request data.
 
-        This method must be overriden by child classes.
+        This method can overridden by child classes if a get_data runs in the
+        main reactor thread, otherwise it's the get_data_blocking method that
+        needs to be overridden
 
         Parameters
         ----------
@@ -262,6 +264,7 @@ class DataNodeServer(ApplicationSession):
             If the amount of data exceeds the data node server's pipeline
             allowance,
             :obj:`False` will be returned.
+
         """
         start = sisock_to_unix_time(start)
         end = sisock_to_unix_time(end)
@@ -273,7 +276,8 @@ class DataNodeServer(ApplicationSession):
     def get_data_blocking(self, field, start, end, min_stride=None):
         """Request data.
 
-        This method must be overriden by child classes.
+        This method should be overridden by child classes if child classes
+        retrieve data in a blocking way.
 
         Parameters
         ----------
@@ -314,5 +318,6 @@ class DataNodeServer(ApplicationSession):
             If the amount of data exceeds the data node server's pipeline
             allowance,
             :obj:`False` will be returned.
+
         """
-        raise RuntimeError("This method must be overriden.")
+        raise RuntimeError("This method must be overridden.")
