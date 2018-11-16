@@ -266,14 +266,12 @@ class DataNodeServer(ApplicationSession):
             :obj:`False` will be returned.
 
         """
-        start = sisock_to_unix_time(start)
-        end = sisock_to_unix_time(end)
-
-        data = yield threads.deferToThread(self.get_data_blocking, field, start, end, min_stride)
+        data = yield threads.deferToThread(self._get_data_blocking, field, start,
+                                           end, min_stride)
         returnValue(data)
 
 
-    def get_data_blocking(self, field, start, end, min_stride=None):
+    def _get_data_blocking(self, field, start, end, min_stride=None):
         """Request data.
 
         This method should be overridden by child classes if child classes

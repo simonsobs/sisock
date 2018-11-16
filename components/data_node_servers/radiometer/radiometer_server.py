@@ -216,21 +216,17 @@ class radiometer_server(sisock.base.DataNodeServer):
 
         return _field, _timeline
 
-    def get_data_blocking(self, field, start, end, min_stride=None):
-        """Read data from disk with proper threading for use with twisted.
+    def _get_data_blocking(self, field, start, end, min_stride=None):
+        """Over-riding the parent class prototype: see the parent class for the
+        API.
 
-        Args:
-            start (float): unix timestamp for start of data range
-            end (float): unix timestamp for end of data range
-            max_points (int): maximum number of points to be returned
-
-        Returns:
-            dict: See sisock.base.DataNodeServer.get_data for details
         """
-        max_points = self.max_points
+        start = sisock.base.sisock_to_unix_time(start)
+        end = sisock.base.sisock_to_unix_time(end)
+
         file_list = _build_file_list(start, end)
         print('Reading data from disk from {start} to {end}.'.format(start=start, end=end))
-        return _read_data_from_disk(file_list, max_points=max_points)
+        return _read_data_from_disk(file_list, max_points=self.max_points)
 
 
 
