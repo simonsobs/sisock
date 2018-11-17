@@ -61,7 +61,6 @@ class thermometry_server(sisock.base.DataNodeServer):
     def onChallenge(self, challenge):
         self.log.info('authentication challenge received')
 
-    @inlineCallbacks
     def onJoin(self, details):
         """Override parent method. See parent class for documentation. It is
         triggered after successfully joining WAMP session. 

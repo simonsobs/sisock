@@ -94,7 +94,6 @@ class DataNodeServer(ApplicationSession):
     name = None
     description = None
 
-    @inlineCallbacks
     def onJoin(self, details):
         """Fired when the session joins WAMP (after successful authentication).
 
@@ -117,7 +116,8 @@ class DataNodeServer(ApplicationSession):
         # Run after join routines
         self.after_onJoin(details)
 
-    def _register_procedures(details):
+    @inlineCallbacks
+    def _register_procedures(self, details):
         """Register get_fields, get_data procedures with the hub.
 
         Parameters
@@ -134,7 +134,8 @@ class DataNodeServer(ApplicationSession):
             except Exception as e:
                 self.log.error("Could not register procedure: %s." % (e))
 
-    def _report_availability(details):
+    @inlineCallbacks
+    def _report_availability(self, details):
         """Report to the hub that this data_node is available to serve data.
 
         Parameters
