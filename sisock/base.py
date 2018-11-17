@@ -108,6 +108,23 @@ class DataNodeServer(ApplicationSession):
         """
         self.log.info("Successfully joined WAMP.")
 
+        # Register procedures
+        self._register_procedures(details)
+
+        # Report availability to the hub
+        self._report_availability(details)
+
+        # Run after join routines
+        self.after_onJoin(details)
+
+    def _register_procedures(details):
+        """Register get_fields, get_data procedures with the hub.
+
+        Parameters
+        ----------
+        details : :class:`autobahn.wamp.types.SessionDetails`
+            Details about the session.
+        """
         proc = [(self.get_fields, uri("consumer." + self.name + ".get_fields")),
                 (self.get_data, uri("consumer." + self.name + ".get_data"))]
         for p in proc:
@@ -117,7 +134,14 @@ class DataNodeServer(ApplicationSession):
             except Exception as e:
                 self.log.error("Could not register procedure: %s." % (e))
 
-        # Tell the hub that we are ready to serve data.
+    def _report_availability(details):
+        """Report to the hub that this data_node is available to serve data.
+
+        Parameters
+        ----------
+        details : :class:`autobahn.wamp.types.SessionDetails`
+            Details about the session.
+        """
         try:
             res = yield self.call(uri("data_node.add"), self.name,
                                   self.description, details.session)
@@ -128,9 +152,7 @@ class DataNodeServer(ApplicationSession):
         except Exception as e:
             self.log.error("Call error: %s." % e)
 
-        self.after_onJoin(details)
-
-
+    
     def onConnect(self):
         """Fired when session first connects to WAMP router."""
         self.log.info("Client session connected.")

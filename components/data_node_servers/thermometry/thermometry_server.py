@@ -45,6 +45,7 @@ class thermometry_server(sisock.base.DataNodeServer):
     of no payload and of complex payload, and stops after 5 seconds.
     """
     data = {}
+    _available = False
 
     def __init__(self, config, name, description, target=None):
         ApplicationSession.__init__(self, config)
@@ -61,8 +62,13 @@ class thermometry_server(sisock.base.DataNodeServer):
         self.log.info('authentication challenge received')
 
     @inlineCallbacks
-    def after_onJoin(self, details):
-        print("session attached")
+    def onJoin(self, details):
+        """Override parent method. See parent class for documentation. It is
+        triggered after successfully joining WAMP session. 
+        """
+        self.log.info("Successfully joined WAMP.")
+
+        self._register_procedures(details)
 
         print('targeting observatory.{}.feeds.temperatures'.format(self.target))
 
@@ -73,7 +79,6 @@ class thermometry_server(sisock.base.DataNodeServer):
                 subscription_message (tuple): Data from the OCS subscription feed.
                                               See OCS Feed documentation for
                                               message structure.
-
             """
             message, feed_data = subscription_message
 
@@ -93,6 +98,11 @@ class thermometry_server(sisock.base.DataNodeServer):
                     if time.time() - self.data[channel_name]['time'][0] > 3600:
                         self.data[channel_name]['time'].pop(0)
                         self.data[channel_name]['data'].pop(0)
+
+                # Only report it's available to the hub after self.data is ready
+                if not self._available:
+                    self._report_availability(details)
+                    self._available = True
 
                 # Debug printing. Do NOT leave on in production.
                 # print("Got event: {}".format(a))
