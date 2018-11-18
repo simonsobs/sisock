@@ -177,6 +177,7 @@ class DataNodeServer(ApplicationSession):
         pass
 
 
+    @inlineCallbacks
     def get_fields(self, start, end):
         """Get a list of available fields and associated timelines available 
         within a time interval.
@@ -186,7 +187,52 @@ class DataNodeServer(ApplicationSession):
         the data server is allowed to include fields with zero samples available
         in the interval.
 
-        This method must be overridden by child classes.
+        This method should be overridden by child classes if the fields are
+        obtained in a non-blocking way (running in the reactor thread).
+
+        Parameters
+        ----------
+        start : float
+            The start time for the field list. If positive, interpret as a
+            UNIX time; if 0 or negative, get field list `t` seconds ago.
+        end : float
+            The end time for the field list, using the same format as `start`.
+
+        Returns
+        -------
+        dictionary
+            Two dictionaries of dictionaries, as defined below.
+
+            - field : the field name is the key, and the value is:
+                - description : information about the field; can be `None`.
+                - timeline : the name of the timeline this field follows.
+                - type : one of "number", "string", "bool"
+                - units : the physical units; can be `None`
+            - timeline : the field name is the key, and the value is:
+                - interval : the average interval, in seconds, between
+                  readings; if the readings are aperiodic, :obj:`None`.
+                - field : a list of field names associated with this timeline
+
+            The `field` dictionary can be empty, indicating that no fields are 
+            available during the requested interval.
+        """
+        data = yield threads.deferToThread(self._get_fields_blocking, start,
+                                           end)
+
+        returnValue(data)
+
+
+    def _get_fields_blocking(self, start, end):
+        """Get a list of available fields and associated timelines available 
+        within a time interval.
+
+        Any field that has at least one available sample in the interval
+        `[start, stop)` must be included in the reply; however, be aware that
+        the data server is allowed to include fields with zero samples available
+        in the interval.
+
+        This method should be overridden by child classes if the fields are
+        obtained in a blocking way (i.e. open(files), ...).
 
         Parameters
         ----------
