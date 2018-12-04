@@ -37,6 +37,7 @@ from autobahn.wamp.types import RegisterOptions
 from autobahn import wamp
 from twisted.python.failure import Failure
 from twisted.internet.defer import inlineCallbacks, returnValue
+from twisted.internet import threads
 
 WAMP_USER   = u"server"
 WAMP_SECRET = u"Q5#x4%HCmgTsS!Pj"
@@ -165,7 +166,7 @@ class DataNodeServer(ApplicationSession):
     def after_onJoin(self, details):
         """This method is called after onJoin() has finished.
 
-        This method can be overriden by child classes that need to run more code
+        This method can be overridden by child classes that need to run more code
         after the parent onJoin method has run.
 
         Parameters
@@ -176,6 +177,7 @@ class DataNodeServer(ApplicationSession):
         pass
 
 
+    @inlineCallbacks
     def get_fields(self, start, end):
         """Get a list of available fields and associated timelines available 
         within a time interval.
@@ -185,7 +187,8 @@ class DataNodeServer(ApplicationSession):
         the data server is allowed to include fields with zero samples available
         in the interval.
 
-        This method must be overriden by child classes.
+        This method should be overridden by child classes if the fields are
+        obtained in a non-blocking way (running in the reactor thread).
 
         Parameters
         ----------
@@ -213,13 +216,60 @@ class DataNodeServer(ApplicationSession):
             The `field` dictionary can be empty, indicating that no fields are 
             available during the requested interval.
         """
-        raise RuntimeError("This method must be overriden.")
+        data = yield threads.deferToThread(self._get_fields_blocking, start,
+                                           end)
+
+        returnValue(data)
 
 
+    def _get_fields_blocking(self, start, end):
+        """Get a list of available fields and associated timelines available 
+        within a time interval.
+
+        Any field that has at least one available sample in the interval
+        `[start, stop)` must be included in the reply; however, be aware that
+        the data server is allowed to include fields with zero samples available
+        in the interval.
+
+        This method should be overridden by child classes if the fields are
+        obtained in a blocking way (i.e. open(files), ...).
+
+        Parameters
+        ----------
+        start : float
+            The start time for the field list. If positive, interpret as a
+            UNIX time; if 0 or negative, get field list `t` seconds ago.
+        end : float
+            The end time for the field list, using the same format as `start`.
+
+        Returns
+        -------
+        dictionary
+            Two dictionaries of dictionaries, as defined below.
+
+            - field : the field name is the key, and the value is:
+                - description : information about the field; can be `None`.
+                - timeline : the name of the timeline this field follows.
+                - type : one of "number", "string", "bool"
+                - units : the physical units; can be `None`
+            - timeline : the field name is the key, and the value is:
+                - interval : the average interval, in seconds, between
+                  readings; if the readings are aperiodic, :obj:`None`.
+                - field : a list of field names associated with this timeline
+
+            The `field` dictionary can be empty, indicating that no fields are 
+            available during the requested interval.
+        """
+        raise RuntimeError("This method must be overridden.")
+
+
+    @inlineCallbacks
     def get_data(self, field, start, end, min_stride=None):
         """Request data.
 
-        This method must be overriden by child classes.
+        This method can overridden by child classes if a get_data runs in the
+        main reactor thread, otherwise it's the get_data_blocking method that
+        needs to be overridden
 
         Parameters
         ----------
@@ -260,5 +310,58 @@ class DataNodeServer(ApplicationSession):
             If the amount of data exceeds the data node server's pipeline
             allowance,
             :obj:`False` will be returned.
+
         """
-        raise RuntimeError("This method must be overriden.")
+        data = yield threads.deferToThread(self._get_data_blocking, field, start,
+                                           end, min_stride)
+        returnValue(data)
+
+
+    def _get_data_blocking(self, field, start, end, min_stride=None):
+        """Request data.
+
+        This method should be overridden by child classes if child classes
+        retrieve data in a blocking way.
+
+        Parameters
+        ----------
+        field      : list of strings
+                     The list of fields you want data from.
+        start      : float
+                     The start time for the data: if positive, interpret as a 
+                     UNIX time; if 0 or negative, begin `start` seconds ago.
+        end        : float
+                     The end time for the data, using the same format as
+                     `start`.
+        min_stride : float or :obj:`None`
+                     If not :obj:`None` then, if necessary, downsample data
+                     such that successive samples are separated by at least
+                     `min_stride` seconds.
+
+        Returns
+        -------
+        dictionary
+            On success, a dictionary is returned with two entries.
+
+            - data : A dictionary with one entry per field:
+                - field_name : array containing the timestream of data.
+            - timeline : A dictionary with one entry per timeline:
+                - timeline_name : An dictionary with the following entries.
+                - t : an array containing the timestamps
+                - finalized_until : the timestamp prior to which the presently
+                  requested data are guaranteed not to change; :obj:`None` may 
+                  be returned if all requested data are finalized
+
+            If data are not available during the whole length requested, all
+            available data will be returend; if no data are available for a 
+            field, or the field does not exist, its timestream will be an empty 
+            array. Timelines will only be included if there is at least one 
+            field to which it corresponds with available data. If no data are 
+            available for any of the fields, all arrays will be empty.
+
+            If the amount of data exceeds the data node server's pipeline
+            allowance,
+            :obj:`False` will be returned.
+
+        """
+        raise RuntimeError("This method must be overridden.")

@@ -137,36 +137,6 @@ def _read_data_from_disk(file_list, start, end, max_points=None):
     return _data
 
 
-@inlineCallbacks
-def _get_data_blocking(field, start, end, max_points):
-    """Read data from disk with threading for use with twisted.
-
-    Args:
-        field (list): list of sisock fields
-        start (float): unix timestamp for start of data range
-        end (float): unix timestamp for end of data range
-        max_points (int): maximum number of points to be returned
-
-    Returns:
-        dict: See sisock.base.DataNodeServer.get_data for details
-
-    """
-    file_list = []
-    for f in field:
-        print("Building file_list for {}".format(f))
-        try:
-            file_list += yield threads.deferToThread(_build_file_list, f, start, end)
-        except IOError:
-            # Silently pass over a requested field that doesn't exist.
-            print("Could not build file list for {}".format(f))
-            pass
-
-    print("Compiled file list {}".format(file_list))
-    print('Reading data from disk from {start} to {end}.'.format(start=start, end=end))
-    data = yield threads.deferToThread(_read_data_from_disk, file_list, start, end, max_points=max_points)
-    returnValue(data)
-
-
 class apex_weather(sisock.base.DataNodeServer):
     """A DataNodeServer serving APEX weather station information.
 
@@ -180,19 +150,6 @@ class apex_weather(sisock.base.DataNodeServer):
         self.name = "apex_weather"
         self.description = "Weather station information from APEX."
 
-    def get_data(self, field, start, end, min_stride=None):
-        """Over-riding the parent class prototype: see the parent class for the
-        API.
-
-        The `min_step` parameter is not implemented. There is bandwidth
-        throttling implemented through the max_points attribute.
-        """
-        start = sisock.base.sisock_to_unix_time(start)
-        end = sisock.base.sisock_to_unix_time(end)
-
-        ret = _get_data_blocking(field, start, end, self.max_points)
-
-        return ret
 
     def get_fields(self, start, end):
         """Over-riding the parent class prototype: see the parent class for the
@@ -248,6 +205,25 @@ class apex_weather(sisock.base.DataNodeServer):
                                       "field": "winddirection"}}
 
         return field, timeline
+
+    def _get_data_blocking(self, field, start, end, min_stride=None):
+        """Over-riding the parent class prototype: see the parent class for the
+        API.
+
+        """
+        start = sisock.base.sisock_to_unix_time(start)
+        end = sisock.base.sisock_to_unix_time(end)
+
+        file_list = []
+        for f in field:
+            try:
+                file_list += _build_file_list(f, start, end)
+            except IOError:
+                # Silently pass over a requested field that doesn't exist.
+                pass
+
+        print('Reading data from disk from {start} to {end}.'.format(start=start, end=end))
+        return _read_data_from_disk(file_list, start, end, max_points=self.max_points)
 
 
 if __name__ == "__main__":
