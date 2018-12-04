@@ -36,6 +36,8 @@ services:
         source: "/var/www/Skymonitor"
         target: "/data"
         read_only: true
+    environment:
+        MAX_POINTS: 1000
     depends_on:
       - "sisock_crossbar"
       - "sisock_grafana_http"
