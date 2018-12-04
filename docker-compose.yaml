@@ -8,8 +8,8 @@ services:
     container_name: sisock_crossbar
     build: ./components/hub/
     ports:
-     - "8080:8080"
-     - "8001:8001"
+     - "127.0.0.1:8080:8080"
+     - "127.0.0.1:8001:8001"
     environment:
          - PYTHONUNBUFFERED=1
     depends_on:
@@ -18,8 +18,6 @@ services:
     image: "sisock_grafana_http"
     container_name: sisock_grafana_http
     build: ./components/grafana_server/
-    ports:
-     - "5000:5000"
     depends_on:
       - "sisock_crossbar"
   weather_server:
