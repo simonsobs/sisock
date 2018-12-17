@@ -1,0 +1,32 @@
+version: '2'
+services:
+  web:
+    image: grafana/grafana:5.4.0
+    ports:
+      - "60009:3000"
+    environment:
+      - GF_INSTALL_PLUGINS=grafana-simple-json-datasource, natel-plotly-panel
+    cap_drop:
+      - ALL
+  app-crossbar:
+    image: registry.spin.nersc.gov/bjk98/sisock_crossbar:latest
+    environment:
+         - PYTHONUNBUFFERED=1
+    labels:
+      io.rancher.container.pull_image: always
+  web-source:
+    image: registry.spin.nersc.gov/bjk98/sisock_grafana_http:latest
+    depends_on:
+      - "app-crossbar"
+    labels:
+      io.rancher.container.pull_image: always
+  app-weather:
+    image: registry.spin.nersc.gov/bjk98/weather_server:latest
+    depends_on:
+      - "app-crossbar"
+      - "web-source"
+    labels:
+      io.rancher.container.pull_image: always
+    entrypoint: /bin/bash
+    stdin_open: true
+    tty: true
