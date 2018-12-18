@@ -27,6 +27,3 @@ services:
       - "web-source"
     labels:
       io.rancher.container.pull_image: always
-    entrypoint: /bin/bash
-    stdin_open: true
-    tty: true
