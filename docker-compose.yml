@@ -6,8 +6,6 @@ services:
       - "60009:3000"
     environment:
       - GF_INSTALL_PLUGINS=grafana-simple-json-datasource, natel-plotly-panel
-    cap_drop:
-      - ALL
   app-crossbar:
     image: registry.spin.nersc.gov/bjk98/sisock_crossbar:latest
     environment:
