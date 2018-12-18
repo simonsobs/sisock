@@ -6,18 +6,24 @@ services:
       - "60009:3000"
     environment:
       - GF_INSTALL_PLUGINS=grafana-simple-json-datasource, natel-plotly-panel
+    cap_drop:
+      - ALL
   app-crossbar:
     image: registry.spin.nersc.gov/bjk98/sisock_crossbar:latest
     environment:
          - PYTHONUNBUFFERED=1
     labels:
       io.rancher.container.pull_image: always
+    cap_drop:
+      - ALL
   web-source:
     image: registry.spin.nersc.gov/bjk98/sisock_grafana_http:latest
     depends_on:
       - "app-crossbar"
     labels:
       io.rancher.container.pull_image: always
+    cap_drop:
+      - ALL
   app-weather:
     image: registry.spin.nersc.gov/bjk98/weather_server:latest
     depends_on:
@@ -25,3 +31,5 @@ services:
       - "web-source"
     labels:
       io.rancher.container.pull_image: always
+    cap_drop:
+      - ALL
