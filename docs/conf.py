@@ -15,7 +15,7 @@
 import os
 import sys
 sys.path.insert(0, os.path.abspath('..'))
-
+from sisock import __version__ as sisock_version
 
 # -- Project information -----------------------------------------------------
 
@@ -24,9 +24,9 @@ copyright = '2018, Simons Collaboration'
 author = 'Simons Collaboration'
 
 # The short X.Y version
-version = ''
+version = sisock_version
 # The full version, including alpha/beta/rc tags
-release = ''
+release = sisock_version
 
 
 # -- General configuration ---------------------------------------------------

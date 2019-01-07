@@ -1,9 +1,10 @@
+import versioneer
+
 from distutils.core import setup
 
-VERSION = '0.1'
-
 setup(name = 'sisock',
-      version = VERSION,
+      version = versioneer.get_version(),
+      cmdclass=versioneer.get_cmdclass(),
       description = 'SImons Observatory data serving through webSOCKets',
       package_dir = {'sisock': 'sisock'},
       packages = ['sisock',])
