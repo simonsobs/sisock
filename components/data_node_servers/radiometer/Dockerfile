@@ -1,14 +1,20 @@
 # sisock radiometer server
 # sisock DataNodeServer serving UCSC radiometer data.
 
-# Use a locally built sisock container as the parent image
-FROM sisock_crossbar
+# Use sisock base image
+FROM sisock:latest
+
+# Copy the current directory contents into the container at /app
+COPY requirements.txt /tmp/
+
+# Install any extra requirements
+RUN pip install --trusted-host pypi.python.org -r /tmp/requirements.txt
 
 # Set the working directory to /app
 WORKDIR /app
 
 # Copy the current directory contents into the container at /app
-ADD . /app
+COPY radiometer_server.py /app/
 
 # Run app.py when the container launches
 CMD ["python3", "-u", "radiometer_server.py"]

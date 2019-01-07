@@ -1,7 +1,4 @@
-klein
-crossbar
-twisted
 autobahn
+crossbar
 numpy
-python-dateutil
-pytz
+twisted
