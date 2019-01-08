@@ -171,6 +171,7 @@ at large time ranges, where fine resolution is not needed.
     ucsc-radiometer:
       image: grumpy.physics.yale.edu/dans-ucsc-radiometer:0.1.0
       volumes:
+        - ./.crossbar:/app/.crossbar:ro
         - /var/www/Skymonitor:/data:ro
       environment:
           MAX_POINTS: 1000
