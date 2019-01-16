@@ -20,6 +20,7 @@ Start here for information about the design and use of sisock.
 .. toctree::
    :maxdepth: 2
 
+   source/components
    source/datanodeservers
 
 API Reference
