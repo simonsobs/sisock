@@ -20,6 +20,8 @@ services:
     build: ./components/grafana_server/
     depends_on:
       - "sisock_crossbar"
+    environment:
+        PORT: 5000
   weather_server:
     image: "weather_server"
     container_name: weather_server

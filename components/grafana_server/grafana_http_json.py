@@ -29,11 +29,12 @@ from twisted.web.server import Site
 from twisted.internet.task import react
 from twisted.internet._sslverify import OpenSSLCertificateAuthorities
 from twisted.internet import ssl
+from os import environ
 
 import sisock
 
 # The port for our webserver that grafana connects to.
-klein_port = 5000
+klein_port = int(environ.get("PORT", "5000"))
 
 # A table of units that grafana uses for requesting time ranges.
 grafana_time_units = {"ms": 0.001,
