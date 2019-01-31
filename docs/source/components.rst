@@ -61,7 +61,9 @@ Configuration
 
 The image is provided at ``grumpy.physics.yale.edu/sisock-http``, and depends
 on the crossbar server running to function. Since it communicates over the
-secure port on crossbar we need the TLS certificates mounted.
+secure port on crossbar we need the TLS certificates mounted. The HTTP server
+defaultly runs on port 5000, but you can change this with the environment
+variable 'PORT', as shown in the example.
 
 .. code-block:: yaml
 
@@ -69,5 +71,7 @@ secure port on crossbar we need the TLS certificates mounted.
       image: grumpy.physics.yale.edu/sisock-http:0.1.0
       depends_on:
         - "sisock-crossbar"
+      environment:
+        PORT: "5001"
       volumes:
         - ./.crossbar:/app/.crossbar:ro
