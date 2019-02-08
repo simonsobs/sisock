@@ -75,3 +75,32 @@ variable 'PORT', as shown in the example.
         PORT: "5001"
       volumes:
         - ./.crossbar:/app/.crossbar:ro
+
+g3-file-scanner
+---------------
+This component will scan a directory for .g3 files, opening them and storing
+information about them required for the g3-reader DataNodeServer in a MySQL
+database. It scans at a given interval, defined as an environment variable. It
+also requires connection parameters for the SQL database, and a top level
+directory to scan.
+
+Configuration
+`````````````
+The image is provided at ``grumpy.physics.yale.edu/sisock-g3-file-scanner``,
+and only depends on the database we store file information in.
+
+.. code-block:: yaml
+
+  g3-file-scanner:
+    image: grumpy.physics.yale.edu/sisock-g3-file-scanner:latest
+    volumes:
+      - /home/koopman/data/yale:/data:ro # has to match the mount in g3-reader
+    environment:
+        SQL_HOST: "database"
+        SQL_USER: "development"
+        SQL_PASSWD: "development"
+        SQL_DB: "files"
+        DATA_DIRECTORY: '/data/'
+        SCAN_INTERVAL: 10 # seconds
+    depends_on:
+      - "database"
