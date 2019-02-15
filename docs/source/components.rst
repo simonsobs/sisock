@@ -92,7 +92,7 @@ and only depends on the database we store file information in.
 .. code-block:: yaml
 
   g3-file-scanner:
-    image: grumpy.physics.yale.edu/sisock-g3-file-scanner:latest
+    image: grumpy.physics.yale.edu/sisock-g3-file-scanner:0.2.0
     volumes:
       - /home/koopman/data/yale:/data:ro # has to match the mount in g3-reader
     environment:
@@ -101,6 +101,6 @@ and only depends on the database we store file information in.
         SQL_PASSWD: "development"
         SQL_DB: "files"
         DATA_DIRECTORY: '/data/'
-        SCAN_INTERVAL: 10 # seconds
+        SCAN_INTERVAL: 3600 # seconds
     depends_on:
       - "database"

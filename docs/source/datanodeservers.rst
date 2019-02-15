@@ -214,7 +214,7 @@ look like:
 .. code-block:: yaml
 
   g3-reader:
-    image: grumpy.physics.yale.edu/dans-g3-reader:latest
+    image: grumpy.physics.yale.edu/dans-g3-reader:0.2.0
     volumes:
       - /home/koopman/data/yale:/data:ro
       - ./.crossbar:/app/.crossbar
