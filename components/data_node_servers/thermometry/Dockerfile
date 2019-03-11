@@ -11,4 +11,4 @@ WORKDIR /app
 COPY thermometry_server.py /app/
 
 # Run app.py when the container launches
-CMD ["python3", "thermometry_server.py"]
+CMD ["python3", "-u", "thermometry_server.py"]

@@ -57,20 +57,21 @@ class thermometry_server(sisock.base.DataNodeServer):
 
             # Check we're a DataNodeServer for the correct Agent.
             if feed_data['agent_address'] == 'observatory.{}'.format(self.target):
-                for channel in message.keys():
-                    channel_name = channel.lower().replace(' ', '_')
+                for m in message:
+                    for channel in m['data'].keys():
+                        channel_name = channel.lower().replace(' ', '_')
 
-                    if channel_name not in self.data.keys():
-                        self.data[channel_name] = {"time": [], "data": []}
+                        if channel_name not in self.data.keys():
+                            self.data[channel_name] = {"time": [], "data": []}
 
-                    # Cache latest data point.
-                    self.data[channel_name]['time'].append(message[channel][0])
-                    self.data[channel_name]['data'].append(message[channel][1])
+                        # Cache latest data point.
+                        self.data[channel_name]['time'].append(m['timestamp'])
+                        self.data[channel_name]['data'].append(m['data'][channel])
 
-                    # Clear front entry if older than an hour.
-                    if time.time() - self.data[channel_name]['time'][0] > 3600:
-                        self.data[channel_name]['time'].pop(0)
-                        self.data[channel_name]['data'].pop(0)
+                        # Clear front entry if older than an hour.
+                        if time.time() - self.data[channel_name]['time'][0] > 3600:
+                            self.data[channel_name]['time'].pop(0)
+                            self.data[channel_name]['data'].pop(0)
 
                 # Debug printing. Do NOT leave on in production.
                 # print("Got event: {}".format(a))
