@@ -8,6 +8,24 @@ import mysql.connector
 from spt3g import core
 from spt3g.core import G3FrameType
 
+def _extract_feeds_from_status_frame(frame):
+    """Get the prov_id and description from each provider in an HKStatus frame.
+
+    Returns
+    -------
+    list
+        list of tuples containing (prov_id, description) for each provider.
+        None if not an HKStatus frame
+
+    """
+    feeds = []
+    for provider in frame['providers']:
+        description = str(provider['description']).strip('"')
+        prov_id = int(str(provider['prov_id']))
+        feeds.append((prov_id, description))
+
+    return feeds
+
 # G3 Modules
 def add_files_to_feeds_table(frame, cur, r, f):
     """Parse the frames, gathering feed information.
@@ -23,43 +41,48 @@ def add_files_to_feeds_table(frame, cur, r, f):
     f : string
         The basename of the g3 file to parse.
     """
-    if frame.type != G3FrameType.EndProcessing:
-        feed = frame['feed']
+    feeds = []
+    # Build feeds list for g3 file
+    if frame.type == G3FrameType.Housekeeping:
+        if frame['hkagg_type'] == 1:
+            feeds = _extract_feeds_from_status_frame(frame)
     else:
         return
 
-    # Get ID from the filed/feed if it exists.
-    cur.execute("SELECT id FROM feeds WHERE filename=%s AND feed=%s", (f, feed))
-    _r = cur.fetchall()
+    # Each file can (and probably will) contain more than one feed
+    for (prov_id, description) in feeds:
+        # Get ID from the file/feed if it exists.
+        cur.execute("SELECT id FROM feeds WHERE filename=%s AND prov_id=%s", (f, prov_id))
+        _r = cur.fetchall()
 
-    if not _r:
-        result = None
-    else:
-        result = _r[0]
-
-    if result is not None:
-        feed_id = result[0]
-    else:
-        feed_id = None
-
-    # If the ID doesn't exist, the file/feed isn't in the table yet.
-    if feed_id is None:
-        # Calculate new unique id for file/feed
-        print("calculating ID %s %s"%(f, feed))
-        cur.execute("SELECT MAX(id) from feeds")
-        max_id = cur.fetchall()[0][0]
-        if max_id is None:
-            _id = 1 # Index on 1 so we can check with not feed_id later
-                    # and not get false result
+        if not _r:
+            result = None
         else:
-            _id = max_id+1
+            result = _r[0]
 
-        # Add file/feed to table.
-        cur.execute("INSERT IGNORE \
-                     INTO feeds \
-                         (id, filename, path, feed) \
-                     VALUES \
-                         (%s, %s, %s, %s)", (_id, f, r, feed))
+        if result is not None:
+            feed_id = result[0]
+        else:
+            feed_id = None
+
+        # If the ID doesn't exist, the file/feed isn't in the table yet.
+        if feed_id is None:
+            # Calculate new unique id for file/feed
+            print("calculating ID %s %s"%(f, description))
+            cur.execute("SELECT MAX(id) from feeds")
+            max_id = cur.fetchall()[0][0]
+            if max_id is None:
+                _id = 1 # Index on 1 so we can check with not feed_id later
+                        # and not get false result
+            else:
+                _id = max_id+1
+
+            # Add file/feed to table.
+            cur.execute("INSERT IGNORE \
+                         INTO feeds \
+                             (id, filename, path, prov_id, description) \
+                         VALUES \
+                             (%s, %s, %s, %s, %s)", (_id, f, r, prov_id, description))
 
 def add_fields_and_times_to_db(frame, cur, r, f):
     """Parse the frames, gathering field information such as start/end times.
@@ -188,9 +211,10 @@ def init_tables(config):
                          (id INT NOT NULL PRIMARY KEY, \
                           filename varchar(255), \
                           path varchar(255), \
-                          feed varchar(255), \
+                          prov_id INT, \
+                          description varchar(255), \
                           scanned BOOL NOT NULL DEFAULT 0)")
-        cur.execute("CREATE UNIQUE INDEX feed_index ON feeds (`filename`, `feed`)")
+        cur.execute("CREATE UNIQUE INDEX feed_index ON feeds (`filename`, `prov_id`)")
         cur.execute("CREATE TABLE fields \
                          (feed_id INT NOT NULL, \
                           field varchar(255), \
@@ -234,7 +258,7 @@ def scan_directory(directory, config):
                     #print("Adding %s/%s to G3Reader"%(root, g3))
                     p.Add(core.G3Reader, filename=os.path.join(root, g3))
                     p.Add(add_files_to_feeds_table, cur=cur, r=root, f=g3)
-                    p.Add(add_fields_and_times_to_db, cur=cur, r=root, f=g3)
+                    #p.Add(add_fields_and_times_to_db, cur=cur, r=root, f=g3)
                     p.Run()
                     # Mark feed_id as 'scanned' in feeds table.
                     cur.execute("UPDATE feeds \
