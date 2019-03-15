@@ -3,13 +3,13 @@
 # about them to a MySQL database.
 
 # Use spt3g base image.
-FROM grumpy.physics.yale.edu/spt3g:36d0c3d
+FROM grumpy.physics.yale.edu/so3g:0.0.4
 
 # Copy the current directory contents into the container at /app
 COPY requirements.txt /tmp/
 
 # Install any extra requirements
-RUN pip3 install --trusted-host pypi.python.org -r /tmp/requirements.txt
+RUN pip3 install -r /tmp/requirements.txt
 
 # Setup environment, else it's not setup to import spt3g in container
 ENV SPT3G_SOFTWARE_PATH /root/spt3g_software

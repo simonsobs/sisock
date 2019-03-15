@@ -5,6 +5,7 @@ from datetime import datetime
 
 import mysql.connector
 
+import so3g
 from spt3g import core
 from spt3g.core import G3FrameType
 
@@ -98,13 +99,16 @@ def add_fields_and_times_to_db(frame, cur, r, f):
     f : string
         The basename of the g3 file to parse.
     """
-    if frame.type != G3FrameType.EndProcessing:
-        feed = frame['feed']
+    if frame.type == G3FrameType.Housekeeping:
+        if frame['hkagg_type'] == 2:
+            prov_id = frame['prov_id']
+        else:
+            return
     else:
         return
 
-    # Get ID from the filed/feed if it exists.
-    cur.execute("SELECT id, scanned FROM feeds WHERE filename=%s AND feed=%s", (f, feed))
+    # Get ID from the filed/prov_id if it exists.
+    cur.execute("SELECT id, scanned FROM feeds WHERE filename=%s AND prov_id=%s", (f, prov_id))
     _r = cur.fetchall()
     result = _r[0]
     if result is not None:
@@ -118,19 +122,20 @@ def add_fields_and_times_to_db(frame, cur, r, f):
         print("Adding %s/%s to G3Reader"%(r, f))
         start_times = {}
         end_times = {}
-        for field in frame['Timestamps'].keys():
-            times = frame['Timestamps'][field]
-            if field not in start_times:
-                start_times[field] = datetime.fromtimestamp(times[0])
-                end_times[field] = datetime.fromtimestamp(times[len(times)-1])
-            else:
-                if datetime.fromtimestamp(times[0]) < start_times[field]:
+        for block in frame['blocks']:
+            for field in dict(block.data).keys():
+                times = list(block.t)
+                if field not in start_times:
                     start_times[field] = datetime.fromtimestamp(times[0])
-                if datetime.fromtimestamp(times[len(times)-1]) > end_times[field]:
                     end_times[field] = datetime.fromtimestamp(times[len(times)-1])
+                else:
+                    if datetime.fromtimestamp(times[0]) < start_times[field]:
+                        start_times[field] = datetime.fromtimestamp(times[0])
+                    if datetime.fromtimestamp(times[len(times)-1]) > end_times[field]:
+                        end_times[field] = datetime.fromtimestamp(times[len(times)-1])
 
         # Check for feed/field combo in DB, also compare start/end times before updating.
-        for field in frame['Timestamps'].keys():
+        for field in dict(block.data).keys():
             # Format for DB entry.
             _start = start_times[field].strftime("%Y-%m-%d %H-%M-%S.%f")
             _end = end_times[field].strftime("%Y-%m-%d %H-%M-%S.%f")
@@ -258,7 +263,7 @@ def scan_directory(directory, config):
                     #print("Adding %s/%s to G3Reader"%(root, g3))
                     p.Add(core.G3Reader, filename=os.path.join(root, g3))
                     p.Add(add_files_to_feeds_table, cur=cur, r=root, f=g3)
-                    #p.Add(add_fields_and_times_to_db, cur=cur, r=root, f=g3)
+                    p.Add(add_fields_and_times_to_db, cur=cur, r=root, f=g3)
                     p.Run()
                     # Mark feed_id as 'scanned' in feeds table.
                     cur.execute("UPDATE feeds \
