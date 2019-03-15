@@ -24,6 +24,7 @@ from twisted.internet._sslverify import OpenSSLCertificateAuthorities
 from twisted.internet.ssl import CertificateOptions
 from OpenSSL import crypto
 
+import so3g
 import sisock
 from spt3g import core
 from spt3g.core import G3FrameType
@@ -124,11 +125,13 @@ def _load_g3_file(_f):
     cache_data = {'Timestamps': {},
                   'TODs': {}}
 
+    prov_id_map = {}
+
     try:
         p = core.G3Pipeline()
         print("Adding {} to G3Reader".format(_f))
         p.Add(core.G3Reader, filename="{}".format(_f))
-        p.Add(_read_data_to_cache, cache=cache_data)
+        p.Add(_read_data_to_cache, cache=cache_data, prov_map=prov_id_map)
         p.Run()
     except RuntimeError:
         print("Could not open {}".format(_f))
@@ -138,7 +141,7 @@ def _load_g3_file(_f):
     #print("loaded data from file", cache_data)
     return cache_data
 
-def _read_data_to_cache(frame, cache):
+def _read_data_to_cache(frame, cache, prov_map):
     """A G3Pipeline Module for caching the current format of .g3 files for
     thermometry. Will need to be updated/replaced when general so3g format
     finalized.
@@ -151,14 +154,34 @@ def _read_data_to_cache(frame, cache):
         Cache of the data. Establish structure outside of this function, since
         we aren't really returning anything from the Pipeline. Allows
         extraction of data from G3Pipeline.
+    prov_map : dict
+        Map of provider ids and descriptions for creating timeline names from
+        descriptions. Cached outside of pipeline.
 
     """
-    if frame.type == G3FrameType.EndProcessing:
-        return
+    # Make sure we're on an HKData frame.
+    if frame.type == G3FrameType.Housekeeping:
+        if frame['hkagg_type'] == 1:
+            # Populate provider map.
+            for provider in frame['providers']:
+                description = str(provider['description']).strip('"')
+                prov_id = int(str(provider['prov_id']))
+
+                prov_map[prov_id] = description
+
+            return
+
+        if frame['hkagg_type'] == 2:
+            pass
+        else:
+            return
     else:
-        for channel in frame['Timestamps'].keys():
+        return
+
+    for block in frame['blocks']:
+        for channel in block.data.keys():
             # Create a feed dependent timeline_name just like in get_fields().
-            _timeline_name = "{feed}.{field}".format(feed=frame['feed'],
+            _timeline_name = "{feed}.{field}".format(feed=prov_map[frame['prov_id']],
                                                      field=channel.lower().replace(' ', '_'))
 
             # Add channel key if it doesn't exist.
@@ -170,8 +193,8 @@ def _read_data_to_cache(frame, cache):
                 cache['TODs'][_timeline_name] = []
 
             # Add data from frame to cache
-            cache['Timestamps'][_timeline_name] += list(frame['Timestamps'][channel])
-            cache['TODs'][_timeline_name] += list(frame['TODs'][channel])
+            cache['Timestamps'][_timeline_name] += list(block.t)
+            cache['TODs'][_timeline_name] += list(block.data[channel])
 
 def _format_data_cache_for_sisock(cache, start, end, max_points=0):
     """Format for return from sisock API.
@@ -315,7 +338,7 @@ class G3ReaderServer(sisock.base.DataNodeServer):
         _timeline = {}
 
         for feed_id, field_name in fields:
-            cur.execute("SELECT feed FROM feeds WHERE id=%s", (feed_id,))
+            cur.execute("SELECT description FROM feeds WHERE id=%s", (feed_id,))
             feed_names = cur.fetchall()
             assert len(feed_names) == 1 # should find single feed name, else something is wrong
 
