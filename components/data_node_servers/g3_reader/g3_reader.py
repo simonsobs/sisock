@@ -101,7 +101,9 @@ def _read_data_from_disk(data_cache, file_list):
     for _file in file_list:
         # Only load data if not already in the cache
         if _file not in data_cache:
-            data_cache[_file] = _load_g3_file(_file)
+            file_cache = _load_g3_file(_file)
+            if file_cache is not None:
+                data_cache[_file] = _load_g3_file(_file)
 
     return data_cache
 
@@ -135,6 +137,7 @@ def _load_g3_file(_f):
         p.Run()
     except RuntimeError:
         print("Could not open {}".format(_f))
+        cache_data = None
 
     # very much a debug statement, do not leave on in production (we really
     # need a better logging system...)
