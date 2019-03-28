@@ -134,50 +134,50 @@ def add_fields_and_times_to_db(frame, cur, r, f):
                     if datetime.fromtimestamp(times[len(times)-1]) > end_times[field]:
                         end_times[field] = datetime.fromtimestamp(times[len(times)-1])
 
-        # Check for feed/field combo in DB, also compare start/end times before updating.
-        for field in dict(block.data).keys():
-            # Format for DB entry.
-            _start = start_times[field].strftime("%Y-%m-%d %H-%M-%S.%f")
-            _end = end_times[field].strftime("%Y-%m-%d %H-%M-%S.%f")
+            # Check for feed/field combo in DB, also compare start/end times before updating.
+            for field in dict(block.data).keys():
+                # Format for DB entry.
+                _start = start_times[field].strftime("%Y-%m-%d %H-%M-%S.%f")
+                _end = end_times[field].strftime("%Y-%m-%d %H-%M-%S.%f")
 
-            # Query for existing start/end times.
-            cur.execute("SELECT feed_id, field, start, end \
-                         FROM fields \
-                         WHERE feed_id=%s \
-                         AND field=%s", (feed_id, field))
-            _r = cur.fetchall()
-            if not _r:
-                result = None
-            else:
-                result = _r[0]
+                # Query for existing start/end times.
+                cur.execute("SELECT feed_id, field, start, end \
+                             FROM fields \
+                             WHERE feed_id=%s \
+                             AND field=%s", (feed_id, field))
+                _r = cur.fetchall()
+                if not _r:
+                    result = None
+                else:
+                    result = _r[0]
 
-            if result is None:
-                # INSERT
-                print("Inserting start={} and end={} to feed_id {} for field {}".format(_start,
-                                                                                        _end,
-                                                                                        feed_id,
-                                                                                        field))
-                cur.execute("INSERT \
-                             INTO fields \
-                                 (feed_id, field, start, end) \
-                             VALUES (%s, %s, %s, %s)", (feed_id, field, _start, _end))
-            else:
-                # UPDATE (only if start < db_start or end > db_end)
-                _id, _field, db_start, db_end = result
-                print("Updating start={} and end={} for feed_id {}, field {}".format(_start,
-                                                                                     _end,
-                                                                                     feed_id,
-                                                                                     field))
-                if start_times[field] < db_start:
-                    cur.execute("UPDATE fields \
-                                 SET start=%s \
-                                 WHERE feed_id=%s \
-                                 AND field=%s", (_start, feed_id, field))
-                if end_times[field] > db_end:
-                    cur.execute("UPDATE fields \
-                                 SET end=%s \
-                                 WHERE feed_id=%s \
-                                 AND field=%s", (_end, feed_id, field))
+                if result is None:
+                    # INSERT
+                    print("Inserting start={} and end={} to feed_id {} for field {}".format(_start,
+                                                                                            _end,
+                                                                                            feed_id,
+                                                                                            field))
+                    cur.execute("INSERT \
+                                 INTO fields \
+                                     (feed_id, field, start, end) \
+                                 VALUES (%s, %s, %s, %s)", (feed_id, field, _start, _end))
+                else:
+                    # UPDATE (only if start < db_start or end > db_end)
+                    _id, _field, db_start, db_end = result
+                    print("Updating start={} and end={} for feed_id {}, field {}".format(_start,
+                                                                                         _end,
+                                                                                         feed_id,
+                                                                                         field))
+                    if start_times[field] < db_start:
+                        cur.execute("UPDATE fields \
+                                     SET start=%s \
+                                     WHERE feed_id=%s \
+                                     AND field=%s", (_start, feed_id, field))
+                    if end_times[field] > db_end:
+                        cur.execute("UPDATE fields \
+                                     SET end=%s \
+                                     WHERE feed_id=%s \
+                                     AND field=%s", (_end, feed_id, field))
     else:
         # debug print
         #print("%s/%s containing feed %s has already been scanned, skipping."%(r, f, feed))
