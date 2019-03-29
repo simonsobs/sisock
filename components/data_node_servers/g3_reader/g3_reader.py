@@ -249,7 +249,12 @@ def _format_data_cache_for_sisock(cache, start, end, max_points=0):
 
     # Determine 'finalized_until' time for each timeline
     for field in _data['timeline']:
-        _data['timeline'][field]['finalized_until'] = np.max(_data['timeline'][field]['t'])
+        try:
+            _data['timeline'][field]['finalized_until'] = np.max(_data['timeline'][field]['t'])
+        except Exception as e:
+            _data['timeline'][field]['finalized_until'] = None
+            print("%s occured on field '%s', unable to determine 'finalized_until' time, \
+                  setting to None..." % (type(e), field))
 
     # Limit maximum number of points to return.
     if max_points != 0:
