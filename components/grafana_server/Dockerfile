@@ -8,7 +8,7 @@ FROM sisock:latest
 COPY requirements.txt /tmp/
 
 # Install any extra requirements
-RUN pip install --trusted-host pypi.python.org -r /tmp/requirements.txt
+RUN pip3 install -r /tmp/requirements.txt
 
 # Set the working directory to /app
 WORKDIR /app
