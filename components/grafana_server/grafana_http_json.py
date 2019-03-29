@@ -247,8 +247,13 @@ class GrafanaSisockDatasrc(object):
             for f in field:
                 # First figure out which timeline this field uses, grab it from
                 # sisock's response, and convert to milliseconds.
-                tl_name = self._field[data_node][0][f]["timeline"]
-                tl = np.array(data["timeline"][tl_name]["t"]) * 1000.0
+                try:
+                    tl_name = self._field[data_node][0][f]["timeline"]
+                    tl = np.array(data["timeline"][tl_name]["t"]) * 1000.0
+                except Exception as e:
+                    print("%s occurred with field '%s', skipping..." %
+                          (type(e), f))
+                    continue
 
                 # Now build the response for this field.
                 d = {"target": data_node + "::" + f,
