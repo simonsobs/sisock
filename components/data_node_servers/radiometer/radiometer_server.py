@@ -56,6 +56,7 @@ def _build_file_list(start, end):
     file_list = []
 
     years = [start_datetime.year + i for i in range(end_datetime.year - start_datetime.year + 1)]
+    print("Years in search:", years)
 
     # simple case, data within single year
     if len(years) == 1:
@@ -99,6 +100,7 @@ def _get_years_files(year, start_day, end_day):
     """
     ret = []
 
+    print("Adding files to list for the year {year}".format(year=year))
     for day in range(start_day, end_day+1):
         # arbitrary format change on this day
         if year == 2018:
@@ -158,6 +160,11 @@ def _read_data_from_disk(file_list, max_points=None):
                     pass  # skip header
                 else:
                     line = l.strip().split()
+
+                    # test for blank lines
+                    if not line:
+                        print("Found blank line, skipping...")
+                        continue
 
                     timestamp = julian_day_year_to_unixtime(float(line[0]), year)
                     if line[1] != "NaN":
