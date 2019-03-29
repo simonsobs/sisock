@@ -102,16 +102,16 @@ def _get_years_files(year, start_day, end_day):
     for day in range(start_day, end_day+1):
         # arbitrary format change on this day
         if year == 2018:
-            if day <= 298:
-                _file = DATA_LOCATION + "PWV/PWV_UCSC_{day}-{year}.txt".format(year=year, day=day)
+            if day <= 201:
+                _file = DATA_LOCATION + "PWV_2SEG/PWV_UCSC_2Seg_{day:03}-{year}.txt".format(year=year, day=day)
                 if os.path.isfile(_file):
                     ret.append((_file, year))
             else:
-                _file = DATA_LOCATION + "PWV/PWV_UCSC_{year}-{day}.txt".format(year=year, day=day)
+                _file = DATA_LOCATION + "PWV_2SEG/PWV_UCSC_2Seg_{year}-{day:03}.txt".format(year=year, day=day)
                 if os.path.isfile(_file):
                     ret.append((_file, year))
         else:
-            _file = DATA_LOCATION + "PWV/PWV_UCSC_{year}-{day}.txt".format(year=year, day=day)
+            _file = DATA_LOCATION + "PWV_2SEG/PWV_UCSC_2Seg_{year}-{day:03}.txt".format(year=year, day=day)
             if os.path.isfile(_file):
                 ret.append((_file, year))
 
