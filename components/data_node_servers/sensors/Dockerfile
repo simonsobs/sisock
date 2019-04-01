@@ -7,6 +7,9 @@ FROM sisock:latest
 # Install any needed packages specified in requirements.txt
 RUN apt-get update && apt-get install -y lm-sensors
 
+# Set timezone to UTC
+ENV TZ=Etc/UTC
+
 # Set the working directory to /app
 WORKDIR /app
 

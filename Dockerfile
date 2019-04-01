@@ -6,6 +6,9 @@ FROM so3g:0.0.4
 #FROM spt3g:36d0c3d
 #FROM python:3
 
+# Set timezone to UTC
+ENV TZ=Etc/UTC
+
 # Set the working directory to /app
 WORKDIR /app
 

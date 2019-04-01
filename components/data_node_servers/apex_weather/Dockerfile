@@ -4,6 +4,9 @@
 # Use sisock base image
 FROM sisock:latest
 
+# Set timezone to UTC
+ENV TZ=Etc/UTC
+
 # Set the working directory to /app
 WORKDIR /app
 

@@ -10,6 +10,9 @@ COPY requirements.txt /tmp/
 # Install any extra requirements
 RUN pip3 install -r /tmp/requirements.txt
 
+# Set timezone to UTC
+ENV TZ=Etc/UTC
+
 # Set the working directory to /app
 WORKDIR /app
 
