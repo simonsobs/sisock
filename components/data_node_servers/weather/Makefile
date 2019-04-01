@@ -1,4 +1,4 @@
-NAME=dans-ucsc-radiometer
+NAME=dans-example-weather
 
 build :
 	docker build -t ${NAME} .

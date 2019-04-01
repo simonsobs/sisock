@@ -1,9 +1,13 @@
+NAME=dans-g3-reader
 
 build :
-	docker build -t g3-reader .
-	docker tag g3-reader:latest grumpy.physics.yale.edu/dans-g3-reader:latest
+	docker build -t ${NAME} .
+	docker tag ${NAME}:latest grumpy.physics.yale.edu/${NAME}:latest
 
 tag :
-	docker tag g3-reader:latest grumpy.physics.yale.edu/dans-g3-reader:latest
+	docker tag ${NAME}:latest grumpy.physics.yale.edu/${NAME}:latest
+
+push :
+	docker push grumpy.physics.yale.edu/$(NAME):latest
 
 # vim: set expandtab!:

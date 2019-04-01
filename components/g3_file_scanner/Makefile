@@ -1,9 +1,13 @@
+NAME=sisock-g3-file-scanner
 
 build :
-	docker build -t g3-file-scanner .
-	docker tag g3-file-scanner:latest grumpy.physics.yale.edu/sisock-g3-file-scanner:latest
+	docker build -t ${NAME} .
+	docker tag ${NAME}:latest grumpy.physics.yale.edu/${NAME}:latest
 
 tag :
-	docker tag g3-file-scanner:latest grumpy.physics.yale.edu/sisock-g3-file-scanner:latest
+	docker tag ${NAME}:latest grumpy.physics.yale.edu/${NAME}:latest
+
+push :
+	docker push grumpy.physics.yale.edu/$(NAME):latest
 
 # vim: set expandtab!:
