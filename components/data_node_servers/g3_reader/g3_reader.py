@@ -447,6 +447,8 @@ if __name__ == "__main__":
                   'db': environ['SQL_DB']}
 
     # Start our component.
-    runner = ApplicationRunner('wss://sisock_crossbar:8080/ws', sisock.base.REALM, ssl=opt)
+    runner = ApplicationRunner("wss://%s:%d/ws" % (sisock.base.SISOCK_HOST, \
+                                                   sisock.base.SISOCK_PORT), \
+                               sisock.base.REALM, ssl=opt)
     runner.run(G3ReaderServer(ComponentConfig(sisock.base.REALM, {}),
                               sql_config=SQL_CONFIG))
