@@ -65,7 +65,7 @@ instructions.
 > `ocs-site-configs`, you could use
 > `templates/docker-compose_production-mode.yaml`. In this case, you actually
 > don't need any of the `sisock` code locally, since it pulls all the docker 
-> images from `grumpy.physics.upenn.edu`: see below for how to access images
+> images from `grumpy.physics.yale.edu`: see below for how to access images
 > from this computer.
 
 Sisock is normally run in `docker` containers using `docker-compose`. You will
