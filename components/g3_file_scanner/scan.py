@@ -68,22 +68,12 @@ def add_files_to_feeds_table(frame, cur, r, f):
 
         # If the ID doesn't exist, the file/feed isn't in the table yet.
         if feed_id is None:
-            # Calculate new unique id for file/feed
-            print("calculating ID %s %s"%(f, description))
-            cur.execute("SELECT MAX(id) from feeds")
-            max_id = cur.fetchall()[0][0]
-            if max_id is None:
-                _id = 1 # Index on 1 so we can check with not feed_id later
-                        # and not get false result
-            else:
-                _id = max_id+1
-
             # Add file/feed to table.
             cur.execute("INSERT IGNORE \
                          INTO feeds \
-                             (id, filename, path, prov_id, description) \
+                             (filename, path, prov_id, description) \
                          VALUES \
-                             (%s, %s, %s, %s, %s)", (_id, f, r, prov_id, description))
+                             (%s, %s, %s, %s)", (f, r, prov_id, description))
 
 def add_fields_and_times_to_db(frame, cur, r, f):
     """Parse the frames, gathering field information such as start/end times.
@@ -110,7 +100,12 @@ def add_fields_and_times_to_db(frame, cur, r, f):
     # Get ID from the filed/prov_id if it exists.
     cur.execute("SELECT id, scanned FROM feeds WHERE filename=%s AND prov_id=%s", (f, prov_id))
     _r = cur.fetchall()
-    result = _r[0]
+
+    if not _r:
+        results = None
+    else:
+        result = _r[0]
+
     if result is not None:
         feed_id = result[0]
         scanned = bool(result[1]) # True if already scanned by this script.
@@ -213,7 +208,7 @@ def init_tables(config):
     if "feeds" not in tables and "fields" not in tables:
         print("Initializing feeds and fields tables.")
         cur.execute("CREATE TABLE feeds \
-                         (id INT NOT NULL PRIMARY KEY, \
+                         (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, \
                           filename varchar(255), \
                           path varchar(255), \
                           prov_id INT, \
