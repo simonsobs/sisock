@@ -24,11 +24,12 @@ class thermometry_server(sisock.base.DataNodeServer):
     """
     data = {}
 
-    def __init__(self, config, name, description, target=None):
+    def __init__(self, config, name, description, target=None, buffer_time=3600):
         ApplicationSession.__init__(self, config)
         self.target = target
         self.name = name
         self.description = description
+        self.buffer_time = buffer_time
 
     # Need to overload onConnect and onChallenge to get ws connection over port 8001 to crossbar
     def onConnect(self):
@@ -57,21 +58,28 @@ class thermometry_server(sisock.base.DataNodeServer):
 
             # Check we're a DataNodeServer for the correct Agent.
             if feed_data['agent_address'] == 'observatory.{}'.format(self.target):
-                for m in message:
-                    for channel in m['data'].keys():
+                for block, value in message.items():
+                    print(block, value)
+
+                    for channel, data_array in value['data'].items():
                         channel_name = channel.lower().replace(' ', '_')
 
                         if channel_name not in self.data.keys():
                             self.data[channel_name] = {"time": [], "data": []}
 
                         # Cache latest data point.
-                        self.data[channel_name]['time'].append(m['timestamp'])
-                        self.data[channel_name]['data'].append(m['data'][channel])
+                        self.data[channel_name]['data'].extend(value['data'][channel])
+                        # This could be improved. We're caching a copy of the
+                        # timestamps array for each channel, which is
+                        # inefficient for the 240s, but used to make sense in
+                        # the old feed scheme
+                        self.data[channel_name]['time'].extend(value['timestamps'])
 
-                        # Clear front entry if older than an hour.
-                        if time.time() - self.data[channel_name]['time'][0] > 3600:
-                            self.data[channel_name]['time'].pop(0)
-                            self.data[channel_name]['data'].pop(0)
+                        # Clear data from buffer.
+                        buff_idx = sum(time.time() - \
+                                       np.array(self.data[channel_name]['time']) > self.buffer_time)
+                        self.data[channel_name]['time'] = self.data[channel_name]['time'][buff_idx:]
+                        self.data[channel_name]['data'] = self.data[channel_name]['data'][buff_idx:]
 
                 # Debug printing. Do NOT leave on in production.
                 # print("Got event: {}".format(a))
@@ -138,7 +146,7 @@ class thermometry_server(sisock.base.DataNodeServer):
 
             if _timeline_name not in _timeline:
                 _timeline[_timeline_name] = {'interval': None,
-                                                  'field': []}
+                                             'field': []}
 
             if channel_name not in _timeline[_timeline_name]['field']:
                 _timeline[_timeline_name]['field'].append(channel_name)
@@ -161,12 +169,14 @@ if __name__ == '__main__':
         try:
             environ[var]
         except KeyError:
-            print("Required environment variable {} missing. Check your environment setup and try again.".format(var))
+            print('Required environment variable {} missing. Check your environment setup and try again.'.format(var))
             sys.exit()
+
+    # Optional environment variables.
+    buffer_length = int(environ.get('BUFFER_TIME', '3600'))
 
     # Start our component.
     # When running locally, not in a container.
-    # runner = ApplicationRunner(u'ws://127.0.0.1:8001/ws', u'test_realm')
     runner = ApplicationRunner("ws://%s:%d/ws" % (sisock.base.SISOCK_HOST, \
                                                    sisock.base.OCS_PORT), \
                                sisock.base.REALM)
