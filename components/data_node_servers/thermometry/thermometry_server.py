@@ -177,8 +177,10 @@ if __name__ == '__main__':
 
     # Start our component.
     # When running locally, not in a container.
-    # runner = ApplicationRunner(u'ws://127.0.0.1:8001/ws', u'test_realm')
-    runner = ApplicationRunner(u'ws://sisock_crossbar:8001/ws', u'test_realm')
-    runner.run(thermometry_server(ComponentConfig(u'test_realm', {}), name=environ['NAME'],
-                                  description=environ['DESCRIPTION'], target=environ['TARGET'],
-                                  buffer_time=buffer_length))
+    runner = ApplicationRunner("ws://%s:%d/ws" % (sisock.base.SISOCK_HOST, \
+                                                   sisock.base.OCS_PORT), \
+                               sisock.base.REALM)
+    runner.run(thermometry_server(ComponentConfig(u'test_realm', {}),
+                                  name=environ['NAME'],
+                                  description=environ['DESCRIPTION'],
+                                  target=environ['TARGET']))

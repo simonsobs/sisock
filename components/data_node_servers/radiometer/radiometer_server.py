@@ -49,13 +49,16 @@ def _build_file_list(start, end):
     end_datetime = datetime.datetime.utcfromtimestamp(end)
 
     # Get list of files between start and end
-    start_day = (start_datetime - datetime.datetime(start_datetime.year, 1, 1)).days + 1
-    end_day = (end_datetime - datetime.datetime(end_datetime.year, 1, 1)).days + 1
+    start_day = (start_datetime - \
+                 datetime.datetime(start_datetime.year, 1, 1)).days + 1
+    end_day = (end_datetime - datetime.datetime(end_datetime.year, 1, 1)).days \
+              + 1
 
     # Build file list to read data
     file_list = []
 
-    years = [start_datetime.year + i for i in range(end_datetime.year - start_datetime.year + 1)]
+    years = [start_datetime.year + i for i in range(end_datetime.year - \
+                                                    start_datetime.year + 1)]
     print("Years in search:", years)
 
     # simple case, data within single year
@@ -70,14 +73,16 @@ def _build_file_list(start, end):
         file_list += _get_years_files(years[0], start_day, days_in_start_year)
         file_list += _get_years_files(years[1], 1, end_day)
 
-    # start in one year, end in another, spanning 1 or more full years in between
+    # start in one year, end in another, spanning 1 or more full years in
+    # between
     else:
         days_in_start_year = (datetime.date(start_datetime.year, 12, 31) -
                               datetime.date(start_datetime.year, 1, 1)).days
         file_list += _get_years_files(years[0], start_day, days_in_start_year)
 
         for year in years[1:-1]:
-            days_in_year = (datetime.date(year, 12, 31) - datetime.date(year, 1, 1)).days
+            days_in_year = (datetime.date(year, 12, 31) - \
+                            datetime.date(year, 1, 1)).days
             file_list += _get_years_files(year, 1, days_in_year)
 
         file_list += _get_years_files(years[-1], 1, end_day)
@@ -105,15 +110,20 @@ def _get_years_files(year, start_day, end_day):
         # arbitrary format change on this day
         if year == 2018:
             if day <= 201:
-                _file = DATA_LOCATION + "PWV_2SEG/PWV_UCSC_2Seg_{day:03}-{year}.txt".format(year=year, day=day)
+                _file = DATA_LOCATION + \
+                          "PWV/PWV_UCSC_{day:03}-{year}.txt".\
+                            format(year=year, day=day)
                 if os.path.isfile(_file):
                     ret.append((_file, year))
             else:
-                _file = DATA_LOCATION + "PWV_2SEG/PWV_UCSC_2Seg_{year}-{day:03}.txt".format(year=year, day=day)
+                _file = DATA_LOCATION + \
+                          "PWV/PWV_UCSC_{year}-{day:03}.txt".\
+                            format(year=year, day=day)
                 if os.path.isfile(_file):
                     ret.append((_file, year))
         else:
-            _file = DATA_LOCATION + "PWV_2SEG/PWV_UCSC_2Seg_{year}-{day:03}.txt".format(year=year, day=day)
+            _file = DATA_LOCATION + "PWV/PWV_UCSC_{year}-{day:03}.txt".\
+                      format(year=year, day=day)
             if os.path.isfile(_file):
                 ret.append((_file, year))
 
@@ -166,7 +176,8 @@ def _read_data_from_disk(file_list, max_points=None):
                         print("Found blank line, skipping...")
                         continue
 
-                    timestamp = julian_day_year_to_unixtime(float(line[0]), year)
+                    timestamp = julian_day_year_to_unixtime(float(line[0]),
+                                                            year)
                     if line[1] != "NaN":
                         data = float(line[1])
 
@@ -180,10 +191,14 @@ def _read_data_from_disk(file_list, max_points=None):
 
     if max_points is not None:
         if max_points < len(_data['data']['pwv']):
-            limiter = range(0, len(_data['data']['pwv']), int(len(_data['data']['pwv'])/max_points))
-            _data['data']['pwv'] = np.array(_data['data']['pwv'])[limiter].tolist()
-            _data['timeline']['pwv']['t'] = np.array(_data['timeline']['pwv']['t'])[limiter].tolist()
-            _data['timeline']['pwv']['finalized_until'] = _data['timeline']['pwv']['t'][-1]
+            limiter = range(0, len(_data['data']['pwv']),
+                            int(len(_data['data']['pwv'])/max_points))
+            _data['data']['pwv'] = \
+              np.array(_data['data']['pwv'])[limiter].tolist()
+            _data['timeline']['pwv']['t'] = \
+              np.array(_data['timeline']['pwv']['t'])[limiter].tolist()
+            _data['timeline']['pwv']['finalized_until'] = \
+              _data['timeline']['pwv']['t'][-1]
 
     return _data
 
@@ -232,7 +247,8 @@ class radiometer_server(sisock.base.DataNodeServer):
         end = sisock.base.sisock_to_unix_time(end)
 
         file_list = _build_file_list(start, end)
-        print('Reading data from disk from {start} to {end}.'.format(start=start, end=end))
+        print('Reading data from disk from {start} to {end}.'.\
+              format(start=start, end=end))
         return _read_data_from_disk(file_list, max_points=self.max_points)
 
 
@@ -262,6 +278,8 @@ if __name__ == "__main__":
                   Setting to None and proceeding.".format(var))
 
     # Start our component.
-    runner = ApplicationRunner('wss://sisock_crossbar:8080/ws', sisock.base.REALM, ssl=opt)
+    runner = ApplicationRunner("wss://%s:%d/ws" % (sisock.base.SISOCK_HOST, \
+                                                   sisock.base.SISOCK_PORT), \
+                               sisock.base.REALM, ssl=opt)
     runner.run(radiometer_server(ComponentConfig(sisock.base.REALM, {}),
                                  max_points=int(environ['MAX_POINTS'])))

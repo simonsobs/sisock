@@ -2,7 +2,8 @@
 # sisock DataNodeServer serving g3 files from disk.
 
 # Use sisock-spt3g base image
-FROM sisock:0.2.2
+FROM sisock:latest
+#FROM sisock:0.2.2
 
 # Copy the current directory contents into the container at /app
 COPY requirements.txt /tmp/

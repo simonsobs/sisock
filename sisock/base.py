@@ -42,8 +42,11 @@ from twisted.internet import threads
 WAMP_USER   = u"server"
 WAMP_SECRET = u"Q5#x4%HCmgTsS!Pj"
 WAMP_URI    = u"wss://127.0.0.1:8080/ws"
+SISOCK_HOST = u"sisock-crossbar"
+SISOCK_PORT = 8080
+OCS_PORT    = 8001
 REALM       = u"test_realm"
-BASE_URI        = u"org.simonsobservatory"
+BASE_URI    = u"org.simonsobservatory"
 
 def uri(s):
     """Compose a full URI for pub/sub or RPC calls.

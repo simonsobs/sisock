@@ -317,8 +317,8 @@ def main(reactor):
                 u"url": sisock.base.WAMP_URI,
                 u"endpoint": {
                   u"type": u"tcp",
-                  u"host": u"sisock_crossbar",
-                  u"port": 8080,
+                  u"host": sisock.base.SISOCK_HOST,
+                  u"port": sisock.base.SISOCK_PORT,
                   u"tls": opt
                 }
             }

@@ -1,103 +1,176 @@
 # sisock
-Engine for Simons Observatory data serving through websockets.
 
+## Brief Overview
+
+**Sisock** is a suite of software for serving **Si**mons Observatory data over
+web**sock**ets.
+
+The key components are:
+- *A WAMP server* &mdash; This runs on just one computer; all data are routed
+  through it.
+- *Data node servers* &mdash; These can be spread across the internet, located
+  on machines from which data are to be served (*data nodes*).
+- A *hub* &mdash; The hub keeps track of which data node servers are online.
+  Only one hub is run, by default on the computer running the WAMP server).
+- *Consumers* &mdash; These are clients that request data from data node
+  servers. They connect to the hub in order to know which data node servers are
+  available and how to access them.
+  - The `components/grafana_server` is an example of a consumer. It reads data
+    via `sisock` and then passes it to Grafana over HTTP.
+
+The following diagram illustrates the above:
 ![Diagram of stuff](docs/_static/diagram.png)
 
-## Requirements
-* python3, crossbar.io
+## Installing and Running
 
-## Key components to-date
-* <tt>.crossbar/config.json</tt> &mdash; The WAMP configuration file
-  * See the README in the <tt>.crossbar</tt> directory for information on TLS
-    certificates).
-* <tt>hub.py</tt> &mdash; The <tt>sisock</tt> hub for tracking which data node
-  servers are available.
-  * Data node servers report availability using the 
-    `data_node.add` and `data_node.subtract` RPC.
-  * Consumers query for available data node servers using the
-    `consumer.get_data_node` RPC; they can also subscribe to the
-    `consumer.data_node_added` and `consumer.data_node_subtracted` topics to be
-    informed on any changes.
-* <tt>sisock.py</tt> &mdash; Module containing parent classes and common utility
-  functions.
-  * It contains the parent class `data_node_server`. Actual data node
-    servers inherit it and override most of the methods.
-* <tt>sisock_example_weather.py</tt> &mdash; A working, toy example of a data 
-  node server, taking its data from the files in the directory
-  <tt>example_data</tt>.
-* <tt>sisock_example_sensors.py</tt> &mdash; A toy example of a data node serve
-  serving live data: viz., the output of the Linux command-line utility <tt>sensors</tt>.
-* <tt>js/example.html</tt> &mdash; A simple client browser-based client showing 
-  how to communicate with the hub and with data node servers.
-* <tt>grafana_http_json.py</tt> &mdash; A webserver that is a <tt>grafana</tt> data source that forwards data from <tt>sisock</tt>.
+### 1. Setting Up Crossbar
 
-## Running with Docker
-sisock + grafana are run in Docker containers.
+First, we need to set up the crossbar configuration. For this, you need access
+to the [ocs-site-configs](https://github.com/simonsobs/ocs-site-configs)
+repository.
 
-### Dependencies
+Everything you need to do to run `sisock` can be done from the `templates` 
+directory of this `ocs-site-configs` repo; if you are modifying anything for
+local development, you can make a copy of this directory elsewhere.
 
-* Docker
-* Docker Compose
+> **Important**: if you make a copy of these files, for security reasons do
+> **not** do it in the root directory of your sisock clone, since it will put 
+> the encryption certificates in your docker image. This is not necessarily a 
+> problem on your local machine, but would compromise security if the image
+> gets pushed to the public DockerHub.
 
-(See below if you'd like to not use `docker-compose`.)
+A default configuration can be found in the `templates` directory.
+You will need first to run `setup-tls.sh` to generate encryption certificates in
+`templates/.crossbar`
 
-### Building with Docker Compose
-We'll first create a network to connect all the containers, we'll call it
-`sisock-net`.
+> **Important**: the ‘common name’ (CN) of the certificate should be
+> `localhost` if you are doing local development, or else the hostname of your
+> server if you are in production mode and will be serving over the internet.
+> The certificates will be rejected if their CN does not match the real-life
+> hostname. You will have to modify the above script if you do not want
+> `localhost`. See `templates/.crossbar/README.md` for instructions on manually
+> generating the certificates.
+
+The `.crossbar/config.json` file should work out of the box, but advanced users
+can tweak settings as they see fit.
+
+### 2. Setting up to use docker
+
+#### Get Dependencies
+
+You will need to have `docker` and `docker-compose` installed on your system.
+There are plenty of websites online that give instructions on how to do so, but
+
+```bash
+$ pip install docker docker-compose
+```
+
+should do the trick.
+
+#### Create `docker-compose.yaml`
+
+We will presume that you want to do local development in the following
+instructions.
+
+> If not, instead of using `templates/docker-compose_dev-mode.yaml` from
+> `ocs-site-configs`, you could use
+> `templates/docker-compose_production-mode.yaml`. In this case, you actually
+> don't need any of the `sisock` code locally, since it pulls all the docker 
+> images from `grumpy.physics.yale.edu`: see below for how to access images
+> from this computer.
+
+Sisock is normally run in `docker` containers using `docker-compose`. You will
+need to create a YAML file for configuring this. Again, you can find an example
+in the [ocs-site-configs](https://github.com/simonsobs/ocs-site-configs) in
+`templates/docker-compose_dev-mode.yaml`.
+
+If you want to use this file ‘out of the box’, define the following environment
+variable:
+- `SISOCK_DIR` to point to the root of your `sisock` clone.
+
+You can also customise which ports are used for various services, though the
+default values are probably fine on most machines.
+- `SISOCK_SQL_PORT` (default = 3308; chosen in order not to conflict with 3306
+  if you are already running an SQL server).
+- `SISOCK_HTTP_PORT` (default = 5000)
+- `SISOCK_GRAFANA_PORT` (default = 3000)
+
+Additionally, if you want to use certain data node servers that read data from
+your local disc, you should also define:
+- For `g3-reader`, define `${SISOCK_HK_DIR}`.
+- For `radiometer-server`, define `${SISOCK_RADIOMETER_DIR}`.
+- For `apex-weather-server`, define `${SISOCK_APEX_DIR}`.
+
+##### Make Sure You Have Access to the `so3g` Docker Image
+
+The `g3_reader` data node server uses the `so3g` library, whose image is pulled
+by `components/g3_file_scanner/Dockerfile`. By default, this image is pulled
+from `grumpy` at Yale. You will need to do the following to enable this:
+
+```bash
+$ docker login grumpy.physics.yale.edu
+```
+
+The username/password is a SO standard: ask Brian Koopman if you don't know it.
+
+Alternatively, you can create your own image locally and alter
+`components/g3file_scanner/Dockerfile` as appropriate.
+
+### 3. Go!
+
+#### Firing Things Up
+
+If it doesn't yet exist, create the overarching network for the system:
 
 ```bash
 $ docker network create --driver bridge sisock-net
 ```
 
-Next, we'll setup the grafana container. Since we'll be configuring grafana and
-don't want to lose any information if we remove the container we'll setup
-persistent storage using a Docker volume.
-
-```bash
-docker volume create grafana-storage
-```
-
-Now we can create a container for grafana. This also installs the simple
-json-datasource plugin and a plotly-panel plugin for some extra plotting
-features.
-
-```bash
-$ docker run -d -p 3000:3000 --name=sisock_grafana -v grafana-storage:/var/lib/grafana -e "GF_INSTALL_PLUGINS=grafana-simple-json-datasource, natel-plotly-panel" grafana/grafana
-```
-
-> Note: The persistant storage keeps the grafana database and plugins. If you
-> ever need to rebuild this container you should not throw the `-e` flag, as it
-> will cause the container to crash when trying to reinstall the plugins over the
-> ones already in the volume. This is likely a bug with grafana's provided Docker
-> installation.
-
-> Note: You could include this in the `docker-compose` configuration, but it
-> doesn't really need to be brought down when you redeploy updates to parts of
-> `sisock`, and so can be kept running. The above note also makes it difficult to
-> provide a usable docker-compose config that handles the plugins.
-
-Add the grafana container to sisock-net:
-
-```bash
-$ docker network connect sisock-net sisock_grafana
-```
-
-Now we'll bring up the containers using `docker-compose`:
+To run *all* the services, simply do:
 
 ```bash
 $ docker-compose up
 ```
 
-This will also build the containers if they aren't built already.
+> Note that this and all subsequent `docker-compose` commands assume your YAML
+> file is named `docker-compose.yaml`. If you are using the out-of-the-box
+> configuration from `ocs-site-configs`, use the `-f` flag to specify the
+> filename.
 
-This attaches the `stdout` of all the containers to your terminal. This is
-helpful for debugging. However, if you'd like to background this, throw the
-`-d` flag.
+Or, you can select which services listed in `docker-compose.yaml` you want to
+run. For instance, the following is a nice, minimal check that things are
+working:
 
-You'll need to configure the Grafana data source as the SimpleJson type with a
-URL of `http://sisock_grafana_http:5000`. The user defined bridge network,
-`sisock-net`, enables DNS resolution by container name, in this case
-`sisock_grafana_http` (as is defined in the `docker-compose.yaml` file.)
+```bash
+$ docker-compose up grafana sisock-http sensors-server
+```
+
+> The commands above attach the `stdout` of all the containers to your
+> terminal; you can terminate with good ol' ctrl-c. This mode is helpful for
+> debugging. However, if you'd like to background this, throw the `-d` flag.
+
+Grafana should now be running: access it at `localhost:3000`. You'll need to 
+configure the Grafana data source as the SimpleJson type with a URL of
+`http://sisock-http:5000`. (The user defined bridge network, `sisock-net`,
+enables DNS resolution by container name, in this case `sisock-http`, as is 
+defined in the `docker-compose.yaml` file.)
+
+#### Rebuilding
+
+If you make modifications to the code, `docker-compose up` won't automatically
+update the images. You will need to do this yourself with `docker-compose
+build`. For instance, if you were working on the code in
+`components/data_node_servers/sensors/`, you would do:
+
+```bash
+$ docker-compose build sensors-server
+```
+
+To rebuild *all* the images (normally not necessary), just do:
+
+```bash
+$ docker-compose build
+```
 
 #### Clean-up
 
@@ -113,11 +186,9 @@ If you'd like to remove the images as well run:
 $ docker-compose down --rmi all
 ```
 
-This will not stop grafana or remove `sisock-net`. To do so:
+This will not remove `sisock-net`. To do so:
 
 ```bash
-$ docker container stop sisock_grafana
-$ docker container rm sisock_grafana
 $ docker network rm sisock-net
 ```
 
@@ -127,120 +198,3 @@ remove the grafana-storage container:
 ```bash
 $ docker volume rm grafana-storage
 ```
-
-### Building and Running w/o Docker Compose
-If we want to build and run the containers separatly we can avoid use of Docker
-Compose. You still need to create the sisock-net network and run the grafana
-container as done above.
-
-Then, we'll build the sisock container image. This will form the base image for
-all containers requiring sisock. From the top of the repo, run:
-
-```bash
-$ docker build -t sisock .
-```
-
-The `components/` directory contains each of the components we'll need to build
-a container for, starting with the `hub`, which also starts the crossbar router.
-Before we proceed, be sure to generate the required TLS certificates in
-`components/hub/.crossbar`. See the README there for details.
-
-#### Building with `make`
-We can use the provided `Makefile` to build all the Docker images, simply run:
-
-```bash
-$ make docker
-```
-
-#### Building Individually
-
-From within `components/hub` we'll build the crossbar router (the router
-automatically starts up the hub component when it begins):
-
-```bash
-$ cd components/hub/
-$ docker build -t sisock_crossbar .
-```
-
-Next we build the `grafana_http_json.py` component's container:
-
-```bash
-$ cd components/grafana_server/
-$ docker build -t sisock_grafana_http .
-```
-
-Now for the data node servers, first the weather server:
-
-```bash
-$ cd components/data_node_servers/weather/
-$ docker build -t weather_server .
-```
-
-Finally, the sensors server (note the needed host network for DNS resolution
-for apt-get'ing the `lm-sensors` package),
-
-```bash
-$ cd components/data_node_servers/sensors/
-$ docker build -t sensors_server --network=host .
-```
-
-#### Running the Containers
-We can run all four components' containers now:
-
-```bash
-$ docker run -d --name=sisock_crossbar --network sisock-net sisock_crossbar
-$ docker run -d --name=sisock_grafana_http --network sisock-net sisock_grafana_http
-$ docker run -d --name=weather_server --network sisock-net weather_server
-$ docker run -d --name=sensors_server --network sisock-net sensors_server
-```
-
-If you want to run the crossbar server and have locally run programs (such as
-OCS agents) interact with it (rather than exclusively those in other
-containers), you'll need to expose the ports. You can do so by adding the `-p`
-flag, for example:
-
-```bash
-$ docker run -d --name=sisock_crossbar -p 8001:8001 -p 8080:8080 --network sisock-net sisock_crossbar
-```
-
-Your running containers should now look something like this:
-
-```bash
-bjk49@grumpy:~/git/sisock$ docker ps
-CONTAINER ID        IMAGE                 COMMAND                  CREATED             STATUS              PORTS                    NAMES
-6f096af2f38e        sensors_server        "python3 server_exam…"   4 seconds ago       Up 2 seconds                                 sensors_server
-fa8e22a9371a        weather_server        "python3 server_exam…"   7 minutes ago       Up 7 minutes                                 weather_server
-15487116c7d8        sisock_grafana_http   "python3 grafana_htt…"   12 minutes ago      Up 12 minutes       5000/tcp                 sisock_grafana_http
-db4ce214e733        sisock_crossbar       "crossbar start"         18 minutes ago      Up 18 minutes       8080/tcp                 sisock_crossbar
-28c49db6220f        grafana/grafana       "/run.sh"                12 days ago         Up 5 hours          0.0.0.0:3000->3000/tcp   sisock_grafana
-```
-
-If you exposed the ports for the `sisock_crossbar` server, you should see `->8001/tcp` and `->8080/tcp` under `PORTS`.
-
-```bash
-CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS              PORTS                                            NAMES
-32ebe256fc98        sisock_crossbar     "crossbar start"    2 seconds ago       Up 1 second         0.0.0.0:8001->8001/tcp, 0.0.0.0:8080->8080/tcp   sisock_crossbar
-```
-
-Navigating to `localhost:3000` will get you to grafana. 
-
-You'll need to configure the Grafana data source as the SimpleJson type with a
-URL of `http://sisock_grafana_http:5000`. The user defined bridge network,
-sisock-net, enables DNS resolution by container name, in this case
-`sisock_grafana_http`.
-
-#### Clean-up
-To clean up the Docker containers when done with the demo:
-
-```
-$ docker container stop sensors_server weather_server sisock_grafana_http sisock_crossbar sisock_grafana
-$ docker container rm sensors_server weather_server sisock_grafana_http sisock_crossbar sisock_grafana
-$ docker network rm sisock-net
-```
-
-At this point we need to delete the built images. You can either run `make clean` or:
-```bash
-$ docker image rm sensors_server weather_server sisock_grafana_http sisock_crossbar sisock_grafana
-```
-
-This is included in the `Makefile`, as it is commonly done during testing.

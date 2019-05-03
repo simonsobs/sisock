@@ -251,6 +251,8 @@ if __name__ == "__main__":
                   Setting to None and proceeding.".format(var))
 
     # Start our component.
-    runner = ApplicationRunner('wss://sisock_crossbar:8080/ws', sisock.base.REALM, ssl=opt)
+    runner = ApplicationRunner("wss://%s:%d/ws" % (sisock.base.SISOCK_HOST, \
+                                                   sisock.base.SISOCK_PORT), \
+                               sisock.base.REALM, ssl=opt)
     runner.run(apex_weather(ComponentConfig(sisock.base.REALM, {}),
                             max_points=int(environ['MAX_POINTS'])))
