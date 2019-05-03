@@ -155,10 +155,7 @@ if __name__ == "__main__":
     cert_fname = (".crossbar/server_cert.pem")
     cert = crypto.load_certificate(crypto.FILETYPE_PEM,
                                    six.u(open(cert_fname, 'r').read()))
-
     opt = CertificateOptions(trustRoot=OpenSSLCertificateAuthorities([cert]))
-
-    # Start reading the sensors
 
     # Start our component.
     runner = ApplicationRunner("wss://%s:%d/ws" % (sisock.base.SISOCK_HOST, \
