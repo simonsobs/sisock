@@ -1,5 +1,5 @@
 """
-A DataNodeServer which serves UCSC Radiometer data from the ACT site.
+A data server which serves UCSC Radiometer data from the ACT site.
 
 Notes:
     * This server has a single field, 'pwv'.
@@ -204,7 +204,7 @@ def _read_data_from_disk(file_list, max_points=None):
 
 
 class radiometer_server(sisock.base.DataNodeServer):
-    """A DataNodeServer serving radiometer data from the UCSC radiometer.
+    """A data server serving radiometer data from the UCSC radiometer.
 
     Inhereits from :class:`sisock.base.data_node_server`.
     """
@@ -212,7 +212,7 @@ class radiometer_server(sisock.base.DataNodeServer):
         ApplicationSession.__init__(self, config)
         self.max_points = max_points
 
-        # Here we set the name of this data node server.
+        # Here we set the name of this data server.
         self.name = "ucsc_radiometer"
         self.description = "PWV readings from the UCSC radiometer."
 

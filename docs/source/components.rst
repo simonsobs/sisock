@@ -3,7 +3,7 @@ Components
 
 There are currently three components that make up a functioning sisock stack
 (in the context of live montioring, anyway). There's the crossbar server, the
-intermediate web server, and then all the ``DataNodeServers``. This page
+intermediate web server, and then all the ``data servers``. This page
 documents how to get containers of these components and configure them in your
 ``docker-config.yml``.
 
@@ -18,7 +18,7 @@ of the Observatory Control System (OCS). This is provided by an image at
 ``grumpy.physics.yale.edu/sisock-crossbar``.
 
 Alongside this server runs the sisock Hub, which keeps track of all the running
-``DataNodeSevers``.
+``data servers``.
 
 Configuration
 `````````````
@@ -52,7 +52,7 @@ sisock-http
 -----------
 Between Grafana and sisock sits an web server. This serves as a data source for
 Grafana, translating the queries from Grafana into data and field requests in
-sisock. The result is data from a ``DataNodeServer`` is passed through the
+sisock. The result is data from a ``data server`` is passed through the
 crossbar server to the sisock-http server and then to Grafana over http,
 displaying in your browser.
 
@@ -79,7 +79,7 @@ variable 'PORT', as shown in the example.
 g3-file-scanner
 ---------------
 This component will scan a directory for .g3 files, opening them and storing
-information about them required for the g3-reader DataNodeServer in a MySQL
+information about them required for the g3-reader data server in a MySQL
 database. It scans at a given interval, defined as an environment variable. It
 also requires connection parameters for the SQL database, and a top level
 directory to scan.

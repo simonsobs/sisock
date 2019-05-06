@@ -1,5 +1,5 @@
 """
-An example data node server.
+An example data server.
 """
 
 import glob
@@ -21,14 +21,14 @@ from OpenSSL import crypto
 import sisock
 
 class apex_weather(sisock.base.DataNodeServer):
-    """An example data node server, serving historic data.
+    """An example data server, serving historic data.
 
     This example serves APEX weather data over a couple of weeks of July 2017
     from simple text files.
 
     Inhereits from :class:`sisock.base.data_node_server`.
     """
-    # Here we set the name of this data node server.
+    # Here we set the name of this data server.
     name = "apex_archive"
     description = "Archived APEX weather."
 

@@ -120,7 +120,7 @@ class GrafanaSisockDatasrc(object):
         # Populate the field list.
         self._field = {}
 
-        # Get list of all data nodes connected to sisock.
+        # Get list of all data servers connected to sisock.
         retries = 6
         blocked = True
         while blocked:
@@ -138,7 +138,7 @@ class GrafanaSisockDatasrc(object):
                 print("{} procedure not yet registered, waiting for sisock hub to finish startup".format(sisock.base.uri("consumer.get_data_node")))
                 time.sleep(5)
 
-        print("Found %d data node%s: getting fields." % (len(data_node),
+        print("Found %d data server%s: getting fields." % (len(data_node),
               "s" if len(data_node) != 1 else ""))
 
         for dn in data_node:
@@ -181,9 +181,9 @@ class GrafanaSisockDatasrc(object):
 
     @inlineCallbacks
     def _data_node_added(self, data_node):
-        """Fired when the hub reports that a new data node has connected to
+        """Fired when the hub reports that a new data server has connected to
         sisock."""
-        print("Data node \"%s\" added: adding its fields." % \
+        print("Data server \"%s\" added: adding its fields." % \
               (data_node["name"]))
         self._field[data_node["name"]] = yield \
            self._session.call(sisock.base.uri("consumer." + data_node["name"] + \
@@ -193,14 +193,14 @@ class GrafanaSisockDatasrc(object):
 
 
     def _data_node_subtracted(self, data_node):
-        """Fired when the hub reports that a data node has disconnected from
+        """Fired when the hub reports that a data server has disconnected from
         sisock."""
-        print("Data node \"%s\" removed: removing its fields." % \
+        print("Data server \"%s\" removed: removing its fields." % \
               (data_node["name"]))
         try:
             del(self._field[data_node["name"]])
         except KeyError:
-            print("Warning: data node \"%s\" had never been added to my " \
+            print("Warning: data server \"%s\" had never been added to my " \
                   "list." % data_node["name"])
         self._remake_json_field_list()
 
@@ -221,7 +221,7 @@ class GrafanaSisockDatasrc(object):
         t_end = iso_to_unix_time(req["range"]["to"])
         interval = grafana_time_units_to_seconds(req["interval"])
 
-        # Get the list of fields to be read, organised by data node.
+        # Get the list of fields to be read, organised by data server.
         poll = {}
         for target in req["targets"]:
             data_node, field = target["target"].split("::")
@@ -229,8 +229,8 @@ class GrafanaSisockDatasrc(object):
                 poll[data_node] = []
             poll[data_node].append(field)
 
-        # Loop through the data nodes in the request.
-        # WARNING: have not yet tested reading from multiple data nodes at once.
+        # Loop through the data servers in the request.
+        # WARNING: have not yet tested reading from multiple data servers at once.
         res = []
         for data_node, field in poll.items():
             # Request data from sisock.
@@ -273,10 +273,10 @@ class GrafanaSisockDatasrc(object):
             return b"No WAMP session\n"
         print("Web client requested /search.")
 
-        # Get list of all data nodes connected to sisock.
+        # Get list of all data servers connected to sisock.
         data_node = yield \
           self._session.call(sisock.base.uri("consumer.get_data_node"))
-        print("Found %d data node%s: getting fields." % (len(data_node),
+        print("Found %d data server%s: getting fields." % (len(data_node),
               "s" if len(data_node) != 1 else ""))
 
         for dn in data_node:

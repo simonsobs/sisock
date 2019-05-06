@@ -83,15 +83,15 @@ def sisock_to_unix_time(t):
         return time.time() + t
 
 class DataNodeServer(ApplicationSession):
-    """Parent class for all data node servers.
+    """Parent class for all data servers.
 
     Attributes
     ----------
     name : string
-        Each data node server inheriting this class must set its own name. The
+        Each data server inheriting this class must set its own name. The
         hub will reject duplicate names.
     description : string
-        Each data node server inheriting this class must provide its own, human-
+        Each data server inheriting this class must provide its own, human-
         readable description for consumers.
     """
 
@@ -102,7 +102,7 @@ class DataNodeServer(ApplicationSession):
     def onJoin(self, details):
         """Fired when the session joins WAMP (after successful authentication).
 
-        After registering procedures, the hub is requested to add this data node
+        After registering procedures, the hub is requested to add this data
         server.
 
         Parameters
@@ -126,9 +126,9 @@ class DataNodeServer(ApplicationSession):
             res = yield self.call(uri("data_node.add"), self.name,
                                   self.description, details.session)
             if not res:
-                self.log.warn("Request to add data node denied.")
+                self.log.warn("Request to add data server denied.")
             else:
-                self.log.info("Data node registered as \"%s\"." % self.name)
+                self.log.info("Data server registered as \"%s\"." % self.name)
         except Exception as e:
             self.log.error("Call error: %s." % e)
 
@@ -310,8 +310,7 @@ class DataNodeServer(ApplicationSession):
             field to which it corresponds with available data. If no data are 
             available for any of the fields, all arrays will be empty.
 
-            If the amount of data exceeds the data node server's pipeline
-            allowance,
+            If the amount of data exceeds the data server's pipeline allowance,
             :obj:`False` will be returned.
 
         """
@@ -362,8 +361,7 @@ class DataNodeServer(ApplicationSession):
             field to which it corresponds with available data. If no data are 
             available for any of the fields, all arrays will be empty.
 
-            If the amount of data exceeds the data node server's pipeline
-            allowance,
+            If the amount of data exceeds the data server's pipeline allowance,
             :obj:`False` will be returned.
 
         """

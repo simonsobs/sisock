@@ -1,5 +1,5 @@
 # sisock radiometer server
-# sisock DataNodeServer serving UCSC radiometer data.
+# sisock data server serving UCSC radiometer data.
 
 # Use sisock base image
 FROM sisock:latest

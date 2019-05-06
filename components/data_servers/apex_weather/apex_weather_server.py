@@ -1,5 +1,5 @@
 """
-A DataNodeServer which serves APEX weather from disk. Based on the original
+A data server which serves APEX weather from disk. Based on the original
 example, which served modified APEX weather files.
 """
 
@@ -138,7 +138,7 @@ def _read_data_from_disk(file_list, start, end, max_points=None):
 
 
 class apex_weather(sisock.base.DataNodeServer):
-    """A DataNodeServer serving APEX weather station information.
+    """A data server serving APEX weather station information.
 
     Inhereits from :class:`sisock.base.data_node_server`.
     """
@@ -146,7 +146,7 @@ class apex_weather(sisock.base.DataNodeServer):
         ApplicationSession.__init__(self, config)
         self.max_points = max_points
 
-        # Here we set the name of this data node server.
+        # Here we set the name of this data server.
         self.name = "apex_weather"
         self.description = "Weather station information from APEX."
 

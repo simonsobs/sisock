@@ -8,12 +8,12 @@ web**sock**ets.
 The key components are:
 - *A WAMP server* &mdash; This runs on just one computer; all data are routed
   through it.
-- *Data node servers* &mdash; These can be spread across the internet, located
-  on machines from which data are to be served (*data nodes*).
-- A *hub* &mdash; The hub keeps track of which data node servers are online.
+- *Data servers* &mdash; These can be spread across the internet, located on
+  machines from which data are to be served.
+- A *hub* &mdash; The hub keeps track of which data servers are online.
   Only one hub is run, by default on the computer running the WAMP server).
-- *Consumers* &mdash; These are clients that request data from data node
-  servers. They connect to the hub in order to know which data node servers are
+- *Consumers* &mdash; These are clients that request data from data 
+  servers. They connect to the hub in order to know which data servers are
   available and how to access them.
   - The `components/grafana_server` is an example of a consumer. It reads data
     via `sisock` and then passes it to Grafana over HTTP.
@@ -95,7 +95,7 @@ default values are probably fine on most machines.
 - `SISOCK_HTTP_PORT` (default = 5000)
 - `SISOCK_GRAFANA_PORT` (default = 3000)
 
-Additionally, if you want to use certain data node servers that read data from
+Additionally, if you want to use certain data servers that read data from
 your local disc, you should also define:
 - For `g3-reader`, define `${SISOCK_HK_DIR}`.
 - For `radiometer-server`, define `${SISOCK_RADIOMETER_DIR}`.
@@ -103,7 +103,7 @@ your local disc, you should also define:
 
 ##### Make Sure You Have Access to the `so3g` Docker Image
 
-The `g3_reader` data node server uses the `so3g` library, whose image is pulled
+The `g3_reader` data server uses the `so3g` library, whose image is pulled
 by `components/g3_file_scanner/Dockerfile`. By default, this image is pulled
 from `grumpy` at Yale. You will need to do the following to enable this:
 
@@ -160,7 +160,7 @@ defined in the `docker-compose.yaml` file.)
 If you make modifications to the code, `docker-compose up` won't automatically
 update the images. You will need to do this yourself with `docker-compose
 build`. For instance, if you were working on the code in
-`components/data_node_servers/sensors/`, you would do:
+`components/data_servers/sensors/`, you would do:
 
 ```bash
 $ docker-compose build sensors-server

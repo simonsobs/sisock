@@ -1,8 +1,8 @@
-DataNodeServers
-===============
+Data Servers
+============
 
-sisock components are made up of individual DataNodeServers which know how to
-retrieve a specific set of data. Each DataNodeServer (abbreviated DaNS, so as
+sisock components are made up of individual Data Servers which know how to
+retrieve a specific set of data. Each Data Server (abbreviated DaNS, so as
 to avoid the commonly known DNS acryonym) runs within its own Docker container.
 To use a DaNS you simply add a copy of its configuration to your
 ``docker-compose.yml`` file and edit it accordingly. Below you will find
@@ -19,12 +19,12 @@ details for how to configure each DaNS.
 
 .. _releases: https://github.com/simonsobs/sisock/releases
 
-.. contents:: DataNodeServers
+.. contents:: Data Servers
     :local:
 
 example-weather
 ---------------
-An example ``DataNodeServer`` for demonstrating reading data from disk. A good
+An example ``Data Server`` for demonstrating reading data from disk. A good
 choice to include for debugging your live monitor.
 
 This container includes a small set of raw text files that contain weather data
@@ -49,7 +49,7 @@ server, and so needs the bind mounted ``.crossbar`` directory.
 
 example-sensors
 ---------------
-An example ``DataNodeServer`` for demonstrating the use of live data. The data
+An example ``Data Server`` for demonstrating the use of live data. The data
 is generated within the container through use of the lm-sensors program, which
 is already installed in the container. This returns the tempearture of your
 computer's CPU cores.
@@ -79,7 +79,7 @@ server, and so needs the bind mounted ``.crossbar`` directory.
 
 apex-weather
 ------------
-A ``DataNodeServer`` based on the ``example-weather`` server, which reads
+A ``Data Server`` based on the ``example-weather`` server, which reads
 weather data from the APEX telescope as archived by the ACT team. Used in
 production at the ACT site.
 
@@ -110,8 +110,8 @@ at large time ranges, where fine resolution is not needed.
 
 thermometry
 -----------
-A ``DataNodeServer`` which is able to cache and serve live thermometry data
-from either a Lakeshore 372 or a Lakeshore 240. This ``DataNodeServer``
+A ``Data Server`` which is able to cache and serve live thermometry data
+from either a Lakeshore 372 or a Lakeshore 240. This ``Data Server``
 communicates with the crossbar server on an unencrypted port so as to enable
 subscription to the OCS data feeds.
 
@@ -151,7 +151,7 @@ instance of the server:
 
 ucsc-radiometer
 ---------------
-A ``DataNodeServer`` based on the ``example-weather`` server, which reads
+A ``Data Server`` based on the ``example-weather`` server, which reads
 weather data from the UCSC radiometer located on Cerro Toco. Used in production
 at the ACT site.
 
@@ -181,11 +181,11 @@ at large time ranges, where fine resolution is not needed.
 
 g3-reader
 ---------
-A ``DataNodeServer`` which reads data from g3 files stored on disk. This
+A ``Data Server`` which reads data from g3 files stored on disk. This
 operates with the help of a MySQL database, which runs in a separate container.
 This database stores information about the g3 files, such as the filename,
 path, feed name, available fields and their associated start and end times.
-This enables the g3-reader DataNodeServer to determine which fields are
+This enables the g3-reader Data Server to determine which fields are
 available via a query to the database and to determine which files to open to
 retrieve the requested data.
 

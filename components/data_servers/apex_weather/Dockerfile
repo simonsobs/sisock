@@ -1,5 +1,5 @@
-# sisock weather server
-# Example sisock data node server, serving APEX weather data.
+# apex weather server
+# data server serving APEX weather data for ACT.
 
 # Use sisock base image
 FROM sisock:latest
@@ -11,7 +11,7 @@ ENV TZ=Etc/UTC
 WORKDIR /app
 
 # Copy the current directory contents into the container at /app
-COPY . /app/
+COPY apex_weather_server.py /app/
 
 # Run app.py when the container launches
-CMD ["python3", "-u", "server_example_weather.py"]
+CMD ["python3", "-u", "apex_weather_server.py"]

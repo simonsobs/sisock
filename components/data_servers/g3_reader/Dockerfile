@@ -1,5 +1,5 @@
 # sisock g3_reader
-# sisock DataNodeServer serving g3 files from disk.
+# sisock data server serving g3 files from disk.
 
 # Use sisock-spt3g base image
 FROM sisock:latest

@@ -50,7 +50,7 @@ connexion.onopen = function(s, details) {
     $("#status").html("<p style='color: green;'>Connected</p>");
     session = s;
 
-    // As soon as we connect, ask the hub to give us the list of data nodes.
+    // As soon as we connect, ask the hub to give us the list of data servers.
     session.call("org.simonsobservatory.consumer.get_data_node").then(
       function (res) {
         $("#data_node option").each(function() {
@@ -65,13 +65,13 @@ connexion.onopen = function(s, details) {
                                    "</option>");
           });
           display_msg("Hub reports " + $(res).length + " available data " +
-                      "nodes");
+                      "servers");
           $("#get_fields").removeAttr("disabled");
         }
         else {
           $("#data_node").append("<option disabled selected value=''>-- No " +
-                                 "data nodes available --</option>");
-          display_msg("Hub reports no available data nodes.");
+                                 "data servers available --</option>");
+          display_msg("Hub reports no available data servers.");
           $("#get_fields").attr("disabled", true);
         }
       },
@@ -80,7 +80,7 @@ connexion.onopen = function(s, details) {
       }
     );
 
-    // Subscribe to the topics for hearing when nodes are added or removed.
+    // Subscribe to the topics for hearing when servers are added or removed.
     session.subscribe("org.simonsobservatory.consumer.data_node_added",
                       function(r) {
       $("#data_node option[value='']").each(function() {
@@ -99,7 +99,7 @@ connexion.onopen = function(s, details) {
       });
       if (!$("#data_node option").size()) {
         $("#data_node").append("<option disabled selected value=''>-- No " +
-                               "data nodes available --</option>");
+                               "data servers available --</option>");
         $("#get_fields").attr("disabled", true);
       }
       display_msg("Data source no longer available: " + r[0].name + ".");
@@ -242,7 +242,7 @@ connexion.open();
       <input id="get_fields" disabled type="button" value="Get Available Fields"
              onclick="get_fields()"/>&nbsp;from data node&nbsp;
       <select id="data_node">
-        <option disabled selected value="">-- No data nodes available 
+        <option disabled selected value="">-- No data servers available 
                                            --</option>
       </select>
       between

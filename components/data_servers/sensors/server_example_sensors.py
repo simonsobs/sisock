@@ -1,5 +1,5 @@
 """
-An example data node server.
+An example data server.
 """
 
 import glob
@@ -27,11 +27,11 @@ field = []
 data = []
 
 class sensors(sisock.base.DataNodeServer):
-    """An example data node server, serving live data.
+    """An example data server, serving live data.
 
     Inhereits from :class:`sisock.base.data_node_server`.
     """
-    # Here we set the name of this data node server.
+    # Here we set the name of this data server.
     name = "sensors"
     description = "The results of the UNIX 'sensors' command."
     field = {}

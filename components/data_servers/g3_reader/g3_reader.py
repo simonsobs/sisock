@@ -1,6 +1,6 @@
 """
 g3_reader
-A DataNodeServer which reads housekeeping data from .g3 files written to disk.
+A data server which reads housekeeping data from .g3 files written to disk.
 
 Notes:
     * You will need to also run the sisock component g3-file-scanner, with an
@@ -298,14 +298,14 @@ def _format_sisock_time_for_sql(sisock_time):
 
 
 class G3ReaderServer(sisock.base.DataNodeServer):
-    """A DataNodeServer serving housekeeping data stored in .g3 format on disk."""
+    """A data server serving housekeeping data stored in .g3 format on disk."""
     def __init__(self, config, sql_config):
         ApplicationSession.__init__(self, config)
 
         # Default to 0, which returns all available data
         self.max_points = int(environ.get("MAX_POINTS", 0))
 
-        # Here we set the name of this data node server
+        # Here we set the name of this data server
         self.name = "g3_reader"
         self.description = "Read g3 files from disk."
 

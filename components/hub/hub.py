@@ -39,14 +39,14 @@ class data_node(object):
         return {"name": self.name, "description": self.description}
 
 class hub(ApplicationSession):
-    """The sisock hub that keeps track of available data node servers..
+    """The sisock hub that keeps track of available data servers..
 
     Inherets from :class:`autobahn.twisted.wamp.ApplicationSession`
 
     Attributes
     ----------
     dn : :class:`data_node`
-        A list of data nodes available.
+        A list of data servers available.
 
     Methods
     -------
@@ -132,11 +132,11 @@ class hub(ApplicationSession):
     @wamp.subscribe("wamp.session.on_leave")
     def check_data_node_leave(self, ev):
         """Fires when a WAMP session leaves and checks if whether it was
-        running a data node server.
+        running a data server.
 
         This method fires when any WAMP session disconnects. It checks to see if
-        that session had added a data node. If yes, and the session neglected to
-        subtract the data node before disconnecting, this method subtracts it.
+        that session had added a data server. If yes, and the session neglected to
+        subtract the data server before disconnecting, this method subtracts it.
 
         Parameters
         ----------
@@ -146,10 +146,10 @@ class hub(ApplicationSession):
 
         n = [i for i in self.dn if i.session_id == ev]
         if len(n):
-            self.log.info("Session \"%s\" controlling data node \"%s\" was "
+            self.log.info("Session \"%s\" controlling data server \"%s\" was "
                           "disconnected." % (ev, n[0].name))
             if len(n) > 1:
-                self.log.error("More than one data node was associated with " +\
+                self.log.error("More than one data server was associated with " +\
                                "the session. Removing the first. This is an " +\
                                "error that needs to be debugged.")
             self.check_subtract_data_node(n[0].name, n[0].session_id)
@@ -161,33 +161,33 @@ class hub(ApplicationSession):
 
     @wamp.register(sisock.base.uri("data_node.add"))
     def add_data_node(self, name, description, session_id):
-        """Request the addition a new data node server.
+        """Request the addition a new data server.
         
         Parameters
         ----------
         name : string
-            The unique name of the data node server.
+            The unique name of the data server.
         session_id : string
             The ID of the WAMP session running the server.
 
         Returns
         -------
         status : bool
-            True on success; false if the data node server name has already been
+            True on success; false if the data server name has already been
             added.
         """
-        self.log.info("Received request to add data node \"%s\"." % name)
-        # Check that this data node has not yet been registered.
+        self.log.info("Received request to add data server \"%s\"." % name)
+        # Check that this data server has not yet been registered.
         if len([i for i in self.dn if i.name == name]):
-            self.log.warn("Data node \"%s\" already exists. " % (name) +\
+            self.log.warn("Data server \"%s\" already exists. " % (name) +\
                           "Denying request.")
             return False
 
         dn = data_node(name, description, session_id)
         self.dn.append(dn)
-        self.log.info("Added data node \"%s\"." % name)
+        self.log.info("Added data server \"%s\"." % name)
 
-        # Let consumers know that a new data node is available.
+        # Let consumers know that a new data server is available.
         self.publish(sisock.base.uri("consumer.data_node_added"), dn.make_dict())
                      
         return True
@@ -195,31 +195,31 @@ class hub(ApplicationSession):
 
     @wamp.register(sisock.base.uri("data_node.subtract"))
     def subtract_data_node(self, name, session_id):
-        """Request the removal of a data node server.
+        """Request the removal of a data server.
 
-        Removes a data node server, if it exists.
+        Removes a data server, if it exists.
 
         Parameters
         ----------
         name : string
-            The unique name of the data node server.
+            The unique name of the data server.
         session_id : string
             The ID of the WAMP session running the server.
         """
-        self.log.info("Received request to remove data node \"%s\"." % name)
+        self.log.info("Received request to remove data server \"%s\"." % name)
         self.check_subtract_data_node(name, session_id)
         return
 
 
     @wamp.register(sisock.base.uri("consumer.get_data_node"))
     def get_data_node(self):
-        """For getting a list of available data node servers.
+        """For getting a list of available data servers.
 
         Returns
         -------
         data_node : list of string tuples
-            For each data node available, the tuple (name, description) is
-            returned. If no data nodes are available, an empty list is returned.
+            For each data server available, the tuple (name, description) is
+            returned. If no data servers are available, an empty list is returned.
         """
         return [i.make_dict() for i in self.dn]
 
@@ -229,7 +229,7 @@ class hub(ApplicationSession):
     # --------------------------------------------------------------------------
 
     def check_subtract_data_node(self, name, session_id):
-        """Remove a data node server if it exists.
+        """Remove a data server if it exists.
 
         A convenience method to avoid repeating the same code in
         `subtract_data_node` and `check_data_node_leave`.
@@ -237,7 +237,7 @@ class hub(ApplicationSession):
         Parameters
         ----------
         name : string
-            The unique name of the data node server.
+            The unique name of the data server.
         session_id : string
             The ID of the WAMP session running the server.
         """
@@ -247,11 +247,11 @@ class hub(ApplicationSession):
                 rem = i
                 break
         if rem >= 0:
-             # Let consumers know that a data node is disappearing.
+             # Let consumers know that a data server is disappearing.
             self.publish(sisock.base.uri("consumer.data_node_subtracted"),
                          self.dn[rem].make_dict())
             del self.dn[rem]
-            self.log.info("Removed data node \"%s\"." % (name))
+            self.log.info("Removed data server \"%s\"." % (name))
             
 
         else:
