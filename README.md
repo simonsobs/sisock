@@ -198,3 +198,7 @@ remove the grafana-storage container:
 ```bash
 $ docker volume rm grafana-storage
 ```
+
+## License
+
+This project is licensed under the BSD 2-Clause License - see the [LICENSE.txt](LICENSE.txt) file for details.

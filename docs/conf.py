@@ -20,8 +20,8 @@ from sisock import __version__ as sisock_version
 # -- Project information -----------------------------------------------------
 
 project = 'SiSock'
-copyright = '2018, Simons Collaboration'
-author = 'Simons Collaboration'
+copyright = '2019, Simons Observatory Collaboration'
+author = 'Simons Observatory Collaboration'
 
 # The short X.Y version
 version = sisock_version
