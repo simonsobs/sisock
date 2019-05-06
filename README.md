@@ -1,5 +1,7 @@
 # sisock
 
+![travis badge](https://travis-ci.com/simonsobs/sisock.svg?branch=master)
+
 ## Brief Overview
 
 **Sisock** is a suite of software for serving **Si**mons Observatory data over
