@@ -1,6 +1,6 @@
 # sisock
 
-![travis badge](https://travis-ci.com/simonsobs/sisock.svg?branch=master)
+[![travis badge](https://travis-ci.com/simonsobs/sisock.svg?branch=master)](https://travis-ci.com/simonsobs/sisock)
 
 ## Brief Overview
 

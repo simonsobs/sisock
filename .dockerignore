@@ -1,0 +1,6 @@
+# components, which get built into images separately
+components/
+
+# web parts
+js/
+www/

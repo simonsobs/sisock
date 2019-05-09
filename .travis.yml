@@ -1,10 +1,47 @@
 dist: xenial
+
+services:
+  - docker
+
+env:
+  global:
+    - IMAGE_NAME=sisock
+
 language: python
 python:
-  - "3.5"
   - "3.6"
-  - "3.7"
-install:
-  - pip install -r requirements.txt .
-script:
-  - pytest tests/
+
+stages:
+  - test
+  - name: dockerize
+    #if: tag IS present
+
+jobs:
+  include:
+    - stage: test
+      install:
+        - pip install -r requirements.txt .
+      script:
+        - pytest tests/
+
+    - stage: dockerize
+      install: true
+
+      before_script:
+        # Use the git tag to tag docker image
+        - export DOCKER_TAG=`git describe --tags --always`
+        # Login to docker
+        - echo "${REGISTRY_PASSWORD}" | docker login "${REGISTRY_URL}" -u "${REGISTRY_USER}" --password-stdin;
+
+      script:
+        # Build the docker image
+        - docker build -t ${REGISTRY_URL}/${IMAGE_NAME}:${DOCKER_TAG} .
+        # Make sure we can import sisock in container
+        - docker run --rm ${REGISTRY_URL}/${IMAGE_NAME}:${DOCKER_TAG} /usr/bin/python3 -c "import sisock"
+
+      after_success:
+        # Upload docker image
+        - docker push ${REGISTRY_URL}/${IMAGE_NAME}:${DOCKER_TAG}
+        - docker tag ${REGISTRY_URL}/${IMAGE_NAME}:${DOCKER_TAG} ${REGISTRY_URL}/${IMAGE_NAME}:latest
+        - docker push ${REGISTRY_URL}/${IMAGE_NAME}:latest
+        - echo "Docker image 'docker push ${REGISTRY_URL}/${IMAGE_NAME}:${DOCKER_TAG}' pushed"
