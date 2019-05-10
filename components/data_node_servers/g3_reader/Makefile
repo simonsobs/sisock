@@ -1,4 +1,4 @@
-NAME=dans-g3-reader
+NAME=sisock-g3-reader-server
 
 build :
 	docker build -t ${NAME} .

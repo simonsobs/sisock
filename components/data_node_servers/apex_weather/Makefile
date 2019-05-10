@@ -1,4 +1,4 @@
-NAME=dans-apex-weather
+NAME=sisock-apex-weather-server
 
 build :
 	docker build -t ${NAME} .

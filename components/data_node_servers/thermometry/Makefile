@@ -1,4 +1,4 @@
-NAME=dans-thermometry
+NAME=sisock-thermometry-server
 
 build :
 	docker build -t ${NAME} .

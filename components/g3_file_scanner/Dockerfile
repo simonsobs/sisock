@@ -2,8 +2,8 @@
 # Periodically scan the data directory, parse g3 files, and add information
 # about them to a MySQL database.
 
-# Use spt3g base image.
-FROM grumpy.physics.yale.edu/so3g:0.0.4
+# Use sisock base image
+FROM sisock:latest
 
 # Copy the current directory contents into the container at /app
 COPY requirements.txt /tmp/

@@ -1,0 +1,102 @@
+version: '3.2'
+services:
+  # --------------------------------------------------------------------------
+  # The sisock library.
+  # --------------------------------------------------------------------------
+  sisock:
+    image: "sisock"
+    build: .
+
+  # --------------------------------------------------------------------------
+  # Core Components
+  # --------------------------------------------------------------------------
+  
+  # --------------------------------------------------------------------------
+  # This service is required by all others (except grafana).
+  # --------------------------------------------------------------------------
+  sisock-crossbar:
+    image: "sisock-crossbar"
+    build: ./components/hub/
+    depends_on:
+      - "sisock"
+
+  # --------------------------------------------------------------------------
+  # A bridge between sisock and grafana: read data from sisock and serve it to
+  # grafana over HTTP.
+  # --------------------------------------------------------------------------
+  sisock-http:
+    image: "sisock-http"
+    build: ./components/grafana_server/
+    depends_on:
+      - "sisock"
+
+  # --------------------------------------------------------------------------
+  # For serving local g3 files with sisock: a file-scanner which logs
+  # information to a database.
+  # --------------------------------------------------------------------------
+  sisock-g3-file-scanner:
+    image: "sisock-g3-file-scanner"
+    build: ./components/g3_file_scanner/
+    depends_on:
+      - "sisock"
+
+  # --------------------------------------------------------------------------
+  # Data Node Servers
+  # --------------------------------------------------------------------------
+
+  # --------------------------------------------------------------------------
+  # Data node server: serves APEX data stored on the local machine.
+  # --------------------------------------------------------------------------
+  sisock-apex-weather-server:
+    image: "sisock-apex-weather-server"
+    build: ./components/data_node_servers/apex_weather/
+    depends_on:
+      - "sisock"
+
+  # --------------------------------------------------------------------------
+  # Data node server: the following three services are for serving local g3
+  # files with sisock: a database, a file-scanner, and a file-reader.
+  # --------------------------------------------------------------------------
+  sisock-g3-reader-server:
+    image: "sisock-g3-reader-server"
+    build: ./components/data_node_servers/g3_reader/
+    depends_on:
+      - "sisock"
+
+  # --------------------------------------------------------------------------
+  # Data node server: serves radiometer data stored on the local machine.
+  # --------------------------------------------------------------------------
+  sisock-radiometer-server:
+    image: "sisock-radiometer-server"
+    build: ./components/data_node_servers/radiometer/
+    depends_on:
+      - "sisock"
+
+  # --------------------------------------------------------------------------
+  # Data node server: an example that streams system sensor information. This is
+  # an example that doesn't require any special hardware or external files.
+  # --------------------------------------------------------------------------
+  sisock-sensors-server:
+    image: "sisock-sensors-server"
+    build: ./components/data_node_servers/sensors/
+    depends_on:
+      - "sisock"
+
+  # --------------------------------------------------------------------------
+  # Data node server: Thermometry OCS subscriber
+  # --------------------------------------------------------------------------
+  sisock-thermometry-server:
+    image: "sisock-thermometry-server"
+    build: ./components/data_node_servers/thermometry/
+    depends_on:
+      - "sisock"
+
+  # --------------------------------------------------------------------------
+  # Data node server: an example weather server that doesn't require any
+  # special hardware or external files (it comes with its own data files).
+  # --------------------------------------------------------------------------
+  sisock-weather-server:
+    image: "sisock-weather-server"
+    build: ./components/data_node_servers/weather/
+    depends_on:
+      - "sisock"

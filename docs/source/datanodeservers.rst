@@ -33,14 +33,14 @@ sure to set your date range accordingly.
 
 Configuration
 `````````````
-The image is called ``dans-example-weather``, and should have the general
+The image is called ``sisock-weather-server``, and should have the general
 dependencies. It also communicates over the secure port with the crossbar
 server, and so needs the bind mounted ``.crossbar`` directory.
 
 .. code-block:: yaml
 
     weather:
-      image: grumpy.physics.yale.edu/dans-example-weather:0.1.0
+      image: grumpy.physics.yale.edu/sisock-weather-server:latest
       depends_on:
         - "sisock-crossbar"
         - "sisock-http"
@@ -63,14 +63,14 @@ This is a fun early demo, but probably won't be useful to many users.
 
 Configuration
 `````````````
-The image is called ``dans-example-sensors``, and should have the general
+The image is called ``sisock-sensors-server``, and should have the general
 dependencies. It also communicates over the secure port with the crossbar
 server, and so needs the bind mounted ``.crossbar`` directory.
 
 .. code-block:: yaml
 
     sensors:
-      image: grumpy.physics.yale.edu/dans-example-sensors:0.1.0
+      image: grumpy.physics.yale.edu/sisock-sensors-server:latest
       depends_on:
         - "sisock-crossbar"
         - "sisock-http"
@@ -85,7 +85,7 @@ production at the ACT site.
 
 Configuration
 `````````````
-The image is called ``dans-apex-weather``, and should have the general
+The image is called ``sisock-apex-weather-server``, and should have the general
 dependencies. It also communicates over the secure port with the crossbar
 server, and so needs the bind mounted ``.crossbar`` directory. In addition, you
 will need to mount the location that the data is stored on the host system.
@@ -97,7 +97,7 @@ at large time ranges, where fine resolution is not needed.
 .. code-block:: yaml
 
     apex-weather:
-      image: grumpy.physics.yale.edu/dans-apex-weather:0.1.0
+      image: grumpy.physics.yale.edu/sisock-apex-weather-server:latest
       volumes:
         - ./.crossbar:/app/.crossbar:ro
         - /var/www/apex_weather:/data:ro
@@ -120,7 +120,7 @@ Retrieval of data written to disk is a work in progress.
 
 Configuration
 `````````````
-The image is called ``dans-thermometry``, and should have the general
+The image is called ``sisock-thermometry-server``, and should have the general
 dependencies. 
 
 There are several environment variables which need to be set uniquely per
@@ -140,7 +140,7 @@ instance of the server:
 .. code-block:: yaml
 
     LSA23JD:
-      image: grumpy.physics.yale.edu/dans-thermometry:0.1.0
+      image: grumpy.physics.yale.edu/sisock-thermometry-server:latest
       environment:
           TARGET: LSA23JD # match to instance-id of agent to monitor, used for data feed subscription
           NAME: 'LSA23JD' # will appear in sisock a front of field name
@@ -157,7 +157,7 @@ at the ACT site.
 
 Configuration
 `````````````
-The image is called ``dans-ucsc-radiometer``, and should have the general
+The image is called ``sisock-radiometer-server``, and should have the general
 dependencies. It also communicates over the secure port with the crossbar
 server, and so needs the bind mounted ``.crossbar`` directory. In addition, you
 will need to mount the location that the data is stored on the host system.
@@ -169,7 +169,7 @@ at large time ranges, where fine resolution is not needed.
 .. code-block:: yaml
 
     ucsc-radiometer:
-      image: grumpy.physics.yale.edu/dans-ucsc-radiometer:0.1.0
+      image: grumpy.physics.yale.edu/sisock-radiometer-server:latest
       volumes:
         - ./.crossbar:/app/.crossbar:ro
         - /var/www/Skymonitor:/data:ro
@@ -198,7 +198,7 @@ clearing scheme is not implemented).
 
 Configuration
 `````````````
-The image is called ``dans-g3-reader``, and should have the general
+The image is called ``sisock-g3-reader-server``, and should have the general
 dependencies. It also communicates over the secure port with the crossbar
 server, and so needs the bind mounted ``.crossbar`` directory. In addition, you
 will need to mount the location that the data is stored on the host system.
@@ -214,7 +214,7 @@ look like:
 .. code-block:: yaml
 
   g3-reader:
-    image: grumpy.physics.yale.edu/dans-g3-reader:0.2.0
+    image: grumpy.physics.yale.edu/sisock-g3-reader-server:latest
     volumes:
       - /home/koopman/data/yale:/data:ro
       - ./.crossbar:/app/.crossbar
@@ -238,4 +238,3 @@ look like:
       MYSQL_RANDOM_ROOT_PASSWORD: 'yes'
     volumes:
       - database-storage-dev:/var/lib/mysql
-
