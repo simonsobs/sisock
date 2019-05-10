@@ -10,8 +10,9 @@ python:
 stages:
   - test
   - name: dockerize
-    if: branch = master AND \
-        tag IS present
+    if: |
+      branch = master AND \
+      tag IS present
 
 jobs:
   include:
