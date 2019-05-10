@@ -1,6 +1,7 @@
 # sisock
 
 [![travis badge](https://travis-ci.com/simonsobs/sisock.svg?branch=master)](https://travis-ci.com/simonsobs/sisock)
+[![Documentation Status](https://readthedocs.org/projects/sisock/badge/?version=latest)](https://sisock.readthedocs.io/en/latest/?badge=latest)
 
 ## Brief Overview
 
