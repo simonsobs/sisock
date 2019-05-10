@@ -1,4 +1,4 @@
-NAME=dans-example-weather
+NAME=sisock-weather-server
 
 build :
 	docker build -t ${NAME} .

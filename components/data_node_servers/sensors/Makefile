@@ -1,4 +1,4 @@
-NAME=dans-example-sensors
+NAME=sisock-sensors-server
 
 build :
 	docker build -t ${NAME} .

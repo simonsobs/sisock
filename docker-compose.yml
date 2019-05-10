@@ -31,8 +31,8 @@ services:
       - "sisock"
 
   # --------------------------------------------------------------------------
-  # Data node servier: the following three services are for serving local g3
-  # files with sisock: a database, a file-scanner, and a file-reader.
+  # For serving local g3 files with sisock: a file-scanner which logs
+  # information to a database.
   # --------------------------------------------------------------------------
   sisock-g3-file-scanner:
     image: "sisock-g3-file-scanner"
@@ -44,90 +44,59 @@ services:
   # Data Node Servers
   # --------------------------------------------------------------------------
 
-#  g3-reader:
-#    image: "g3-reader"
-#    build: ${SISOCK_DIR}/components/data_node_servers/g3_reader/
-#    volumes:
-#      - ${SISOCK_HK_DIR}:/data:ro
-#      - ./.crossbar:/app/.crossbar
-#    environment:
-#        SQL_HOST: "database"
-#        SQL_USER: "development"
-#        SQL_PASSWD: "development"
-#        SQL_DB: "files"
-#        MAX_POINTS: 1000
-#    depends_on:
-#      - "sisock-crossbar"
-#      - "database"
-#      - "g3-file-scanner"
-#
-#  # --------------------------------------------------------------------------
-#  # Data node server: an example that streams system sensor information. This is
-#  # an example that doesn't require any special hardware or external files.
-#  # --------------------------------------------------------------------------
-#  sensors-server:
-#    image: "sensors-server"
-#    container_name: sensors-server
-#    build: ${SISOCK_DIR}/components/data_node_servers/sensors/
-#    volumes:
-#      - ./.crossbar:/app/.crossbar
-#    depends_on:
-#      - "sisock-crossbar"
-#
-#  # --------------------------------------------------------------------------
-#  # Data node server: an example weather server that doesn't require any
-#  # special hardware or external files (it comes with its own data files).
-#  # --------------------------------------------------------------------------
-#  weather-server:
-#    image: "weather-server"
-#    container_name: weather-server
-#    build: ${SISOCK_DIR}/components/data_node_servers/weather/
-#    depends_on:
-#      - "sisock-crossbar"
-#
-#  # --------------------------------------------------------------------------
-#  # Data node server: serves radiometer data stored on the local machine.
-#  # --------------------------------------------------------------------------
-#  radiometer-server:
-#    image: "radiometer-server"
-#    container_name: radiometer-server
-#    build: ${SISOCK_DIR}/components/data_node_servers/radiometer/
-#    environment:
-#        MAX_POINTS: 1000
-#    volumes:
-#      - ${SISOCK_RADIOMETER_DIR}:/data:ro
-#      - ./.crossbar:/app/.crossbar
-#    depends_on:
-#      - "sisock-crossbar"
-#
-#  # --------------------------------------------------------------------------
-#  # Data node server: serves APEX data stored on the local machine.
-#  # --------------------------------------------------------------------------
-#  apex-weather-server:
-#    image: "apex-weather-server"
-#    container_name: apex-weather-server
-#    build: ${SISOCK_DIR}/components/data_node_servers/apex_weather/
-#    environment:
-#        MAX_POINTS: 1000
-#    volumes:
-#      - ${SISOCK_APEX_DIR}:/data:ro
-#      - ./.crossbar:/app/.crossbar
-#    depends_on:
-#      - "sisock-crossbar"
-#
-#  # --------------------------------------------------------------------------
-#  # Data node server: LS372 measurement.
-#  # --------------------------------------------------------------------------
-#  ls372-measurement:
-#    image: "ls372-measurement"
-#    container_name: ls372-measurement
-#    build: ${SISOCK_DIR}/components/data_node_servers/thermometry/
-#    environment:
-#        TARGET: measurement # Match to instance-id of agent to monitor, used
-#                            # for data feed subscription.
-#        NAME: 'LSA22HA' # Will appear in sisock a front of field name.
-#        DESCRIPTION: "LS372 measuring test board in the lab."
-#    volumes:
-#      - ./.crossbar:/app/.crossbar
-#    depends_on:
-#      - "sisock-crossbar"
+  # --------------------------------------------------------------------------
+  # Data node server: serves APEX data stored on the local machine.
+  # --------------------------------------------------------------------------
+  sisock-apex-weather-server:
+    image: "sisock-apex-weather-server"
+    build: ./components/data_node_servers/apex_weather/
+    depends_on:
+      - "sisock"
+
+  # --------------------------------------------------------------------------
+  # Data node server: the following three services are for serving local g3
+  # files with sisock: a database, a file-scanner, and a file-reader.
+  # --------------------------------------------------------------------------
+  sisock-g3-reader-server:
+    image: "sisock-g3-reader-server"
+    build: ./components/data_node_servers/g3_reader/
+    depends_on:
+      - "sisock"
+
+  # --------------------------------------------------------------------------
+  # Data node server: serves radiometer data stored on the local machine.
+  # --------------------------------------------------------------------------
+  sisock-radiometer-server:
+    image: "sisock-radiometer-server"
+    build: ./components/data_node_servers/radiometer/
+    depends_on:
+      - "sisock"
+
+  # --------------------------------------------------------------------------
+  # Data node server: an example that streams system sensor information. This is
+  # an example that doesn't require any special hardware or external files.
+  # --------------------------------------------------------------------------
+  sisock-sensors-server:
+    image: "sisock-sensors-server"
+    build: ./components/data_node_servers/sensors/
+    depends_on:
+      - "sisock"
+
+  # --------------------------------------------------------------------------
+  # Data node server: Thermometry OCS subscriber
+  # --------------------------------------------------------------------------
+  sisock-thermometry-server:
+    image: "sisock-thermometry-server"
+    build: ./components/data_node_servers/thermometry/
+    depends_on:
+      - "sisock"
+
+  # --------------------------------------------------------------------------
+  # Data node server: an example weather server that doesn't require any
+  # special hardware or external files (it comes with its own data files).
+  # --------------------------------------------------------------------------
+  sisock-weather-server:
+    image: "sisock-weather-server"
+    build: ./components/data_node_servers/weather/
+    depends_on:
+      - "sisock"

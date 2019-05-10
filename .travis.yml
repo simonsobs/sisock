@@ -3,10 +3,6 @@ dist: xenial
 services:
   - docker
 
-env:
-  global:
-    - IMAGE_NAME=sisock
-
 language: python
 python:
   - "3.6"
@@ -14,7 +10,8 @@ python:
 stages:
   - test
   - name: dockerize
-    #if: tag IS present
+    #if: branch = master AND \
+    #    tag IS present
 
 jobs:
   include:
@@ -37,11 +34,6 @@ jobs:
         # Build the docker images with docker-compose
         - docker-compose build
 
-        ## Build the docker image
-        #- docker build -t ${REGISTRY_URL}/${IMAGE_NAME}:${DOCKER_TAG} .
-        ## Make sure we can import sisock in container
-        #- docker run --rm ${REGISTRY_URL}/${IMAGE_NAME}:${DOCKER_TAG} /usr/bin/python3 -c "import sisock"
-
       after_success:
         # Tag all images for upload to the registry
         - "docker-compose config | grep 'image: ' | awk -F ': ' '{ print $2 }' | xargs -I {} docker tag {}:latest ${REGISTRY_URL}/{}:latest"
@@ -50,9 +42,4 @@ jobs:
         # Upload to docker registry
         - "docker-compose config | grep 'image: ' | awk -F ': ' '{ print $2 }' | xargs -I {} docker push ${REGISTRY_URL}/{}:${DOCKER_TAG}"
         - "docker-compose config | grep 'image: ' | awk -F ': ' '{ print $2 }' | xargs -I {} docker push ${REGISTRY_URL}/{}:latest"
-        - "docker-compose config | grep 'image: ' | awk -F ': ' '{ print $2 }' | xargs -I {} echo '${REGISTRY_URL}/{}:${DOCKER_TAG} pushed'"
-        ## Upload docker image
-        #- docker push ${REGISTRY_URL}/${IMAGE_NAME}:${DOCKER_TAG}
-        #- docker tag ${REGISTRY_URL}/${IMAGE_NAME}:${DOCKER_TAG} ${REGISTRY_URL}/${IMAGE_NAME}:latest
-        #- docker push ${REGISTRY_URL}/${IMAGE_NAME}:latest
-        #- echo "Docker image 'docker push ${REGISTRY_URL}/${IMAGE_NAME}:${DOCKER_TAG}' pushed"
+        - "docker-compose config | grep 'image: ' | awk -F ': ' '{ print $2 }' | xargs -I {} echo ${REGISTRY_URL}/{}:${DOCKER_TAG} pushed"
