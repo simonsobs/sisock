@@ -23,6 +23,16 @@ Start here for information about the design and use of sisock.
    source/components
    source/datanodeservers
 
+Developer's Guide
+------------------
+
+If you are interested in the details of how individual components work, look here.
+
+.. toctree::
+   :maxdepth: 2
+
+   source/g3filescanner
+
 API Reference
 -------------
 If you are looking for information on a specific function, class or method, this part of the documentation is for you.
