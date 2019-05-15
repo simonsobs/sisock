@@ -101,8 +101,9 @@ def add_fields_and_times_to_db(frame, cur, r, f):
     cur.execute("SELECT id, scanned FROM feeds WHERE filename=%s AND prov_id=%s", (f, prov_id))
     _r = cur.fetchall()
 
+    # _r will be [] if empty.
     if not _r:
-        results = None
+        result = None
     else:
         result = _r[0]
 
