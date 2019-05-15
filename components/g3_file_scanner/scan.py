@@ -300,35 +300,16 @@ def build_description_table(config):
     cur = cnx.cursor()
     print("SQL server connection established")
 
-    total_time = 0.
-    sql_time = 0.
-
-    t_sub = time.time()
-
     # Get feed_ids and field names from database.
     print("Querying database for all fields")
-    cur.execute("SELECT DISTINCT feed_id, field \
-                 FROM fields")
+    cur.execute("SELECT DISTINCT F.field, E.description \
+                 FROM fields F, feeds E \
+                 WHERE F.feed_id=E.id")
     fields = cur.fetchall()
-    t_ellapsed = time.time() - t_sub
-    sql_time += t_ellapsed
 
     # print("Queried for fields:", fields) # debug
 
-    sql_queries = 1
-    for feed_id, field_name in fields:
-        t_sub = time.time()
-
-        cur.execute("SELECT description FROM feeds WHERE id=%s", (feed_id,))
-        feed_names = cur.fetchall()
-
-        t_ellapsed = time.time() - t_sub
-        sql_time += t_ellapsed
-        sql_queries += 1
-
-        # should find single feed name, else something is wrong
-        assert len(feed_names) == 1
-
+    for field_name, description in fields:
         # Create our timeline names based on the feed
         _field_name = (field_name).lower().replace(' ', '_')
 
@@ -336,7 +317,7 @@ def build_description_table(config):
         # is timestamped independently anyway, and _field_name is not
         # guarenteed to be unique between feeds (i.e. there is a "Channel
         # 01" feed on every Lakeshore).
-        _timeline_name = feed_names[0][0] + '.' + _field_name
+        _timeline_name = description + '.' + _field_name
 
         cur.execute("INSERT IGNORE \
                      INTO description \
@@ -350,8 +331,6 @@ def build_description_table(config):
     cnx.close()
 
     total_time = time.time() - t
-    print("SQL Time:", sql_time)
-    print("SQL Queries:", sql_queries)
     print("Total Time:", total_time)
 
 
