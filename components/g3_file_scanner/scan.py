@@ -222,6 +222,10 @@ def init_tables(config):
                           end DATETIME(6))")
         cur.execute("CREATE UNIQUE INDEX index_field ON fields (`feed_id`, `field`)")
 
+    if "description" not in tables:
+        cur.execute("CREATE TABLE description \
+                         (description varchar(255) NOT NULL PRIMARY KEY)")
+
     cnx.commit()
     cur.close()
     cnx.close()
@@ -273,6 +277,63 @@ def scan_directory(directory, config):
     cur.close()
     cnx.close()
 
+
+def build_description_table(config):
+    """Build the list of field names that the sisock g3-reader data server will
+    return. This is stored in the description table.
+
+    Parameters
+    ----------
+    config : dict
+        SQL config for the DB connection
+
+    """
+    print("Buliding description table")
+    # Profiling building the field list
+    t = time.time()
+
+    # Establish DB connection.
+    cnx = mysql.connector.connect(host=config['host'],
+                                  user=config['user'],
+                                  passwd=config['passwd'],
+                                  db=config['db'])
+    cur = cnx.cursor()
+    print("SQL server connection established")
+
+    # Get feed_ids and field names from database.
+    print("Querying database for all fields")
+    cur.execute("SELECT DISTINCT F.field, E.description \
+                 FROM fields F, feeds E \
+                 WHERE F.feed_id=E.id")
+    fields = cur.fetchall()
+
+    # print("Queried for fields:", fields) # debug
+
+    for field_name, description in fields:
+        # Create our timeline names based on the feed
+        _field_name = (field_name).lower().replace(' ', '_')
+
+        # Actually using for both timeline and field names, as each field
+        # is timestamped independently anyway, and _field_name is not
+        # guarenteed to be unique between feeds (i.e. there is a "Channel
+        # 01" feed on every Lakeshore).
+        _timeline_name = description + '.' + _field_name
+
+        cur.execute("INSERT IGNORE \
+                     INTO description \
+                         (description) \
+                     VALUES \
+                         (%s)", (_timeline_name,))
+
+    # Close DB connection
+    cnx.commit()
+    cur.close()
+    cnx.close()
+
+    total_time = time.time() - t
+    print("Total Time:", total_time)
+
+
 if __name__ == "__main__":
     # Check variables setup when creating the Docker container.
     required_env = ['SQL_HOST', 'SQL_USER', 'SQL_PASSWD', 'SQL_DB']
@@ -295,5 +356,6 @@ if __name__ == "__main__":
 
     while True:
         scan_directory(environ['DATA_DIRECTORY'], SQL_CONFIG)
+        build_description_table(SQL_CONFIG)
         print('sleeping for:', environ['SCAN_INTERVAL'])
         time.sleep(int(environ['SCAN_INTERVAL']))

@@ -318,9 +318,13 @@ class G3ReaderServer(sisock.base.DataNodeServer):
         """Over-riding the parent class prototype: see the parent class for the
         API.
 
-        Query the MySQL DB for available fields between the start and end times.
+        Query the MySQL DB for available fields between the start and end
+        times.
 
         """
+        # Profiling the get_fields method
+        t = time.time()
+
         # Establish DB connection
         cnx = mysql.connector.connect(host=self.sql_config['host'],
                                       user=self.sql_config['user'],
@@ -329,38 +333,22 @@ class G3ReaderServer(sisock.base.DataNodeServer):
         cur = cnx.cursor()
         print("SQL server connection established")
 
-        start_str = _format_sisock_time_for_sql(start)
-        end_str = _format_sisock_time_for_sql(end)
-
         # Get feed_ids and field names from database.
         print("Querying database for all fields")
-        cur.execute("SELECT DISTINCT feed_id, field \
-                     FROM fields \
-                     WHERE end > %s AND start < %s", (start_str, end_str))
-        fields = cur.fetchall()
+        cur.execute("SELECT description \
+                     FROM description")
+        descriptions = cur.fetchall()
 
-        #print("Queried for fields:", fields) # debug
+        # print("Queried for fields:", fields) # debug
 
         # Construct our fields.
         _field = {}
         _timeline = {}
 
-        for feed_id, field_name in fields:
-            cur.execute("SELECT description FROM feeds WHERE id=%s", (feed_id,))
-            feed_names = cur.fetchall()
-            assert len(feed_names) == 1 # should find single feed name, else something is wrong
-
-            # Create our timeline names based on the feed
-            _field_name = (field_name).lower().replace(' ', '_')
-
-            # Actually using for both timeline and field names, as each field
-            # is timestamped independently anyway, and _field_name is not
-            # guarenteed to be unique between feeds (i.e. there is a "Channel
-            # 01" feed on every Lakeshore).
-            _timeline_name = feed_names[0][0] + '.' + _field_name
+        for description in descriptions:
+            _timeline_name = description[0]
 
             if _timeline_name not in _field:
-                print("Generating field dictionary for field {}".format(_timeline_name))
                 _field[_timeline_name] = {'description': None,
                                           'timeline': _timeline_name,
                                           'type': 'number',
@@ -371,12 +359,14 @@ class G3ReaderServer(sisock.base.DataNodeServer):
                                              'field': []}
 
             if _timeline_name not in _timeline[_timeline_name]['field']:
-                print("Adding field to timeline dictionary for field {}".format(_timeline_name))
                 _timeline[_timeline_name]['field'].append(_timeline_name)
 
         # Close DB connection
         cur.close()
         cnx.close()
+
+        total_time = time.time() - t
+        print("Time to build field list:", total_time)
 
         return _field, _timeline
 
