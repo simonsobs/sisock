@@ -21,15 +21,34 @@ class thermometry_server(sisock.base.DataNodeServer):
     """
     An application component that subscribes and receives events
     of no payload and of complex payload, and stops after 5 seconds.
+
+    Parameters
+    ----------
+    config : ComponentConfig
+        autobahn ComponentConfig
+    name : str
+        sisock data server name, used within sisock
+    description : str
+        sisock data server description, used within sisock
+    feed : str
+        ocs registered feed name i.e. 'temperatures', used for subscribing to
+        feed for data collection and caching
+    target : str
+        ocs agent target, i.e. "LSA22HA", used to assemble the complete
+        crossbar address for subscribing to a feed for data collection
+    buffer_time : int
+        amount of time, in seconds, to buffer data for live monitor
+
     """
     data = {}
 
-    def __init__(self, config, name, description, target=None, buffer_time=3600):
+    def __init__(self, config, name, description, feed, target=None, buffer_time=3600):
         ApplicationSession.__init__(self, config)
         self.target = target
         self.name = name
         self.description = description
         self.buffer_time = buffer_time
+        self.feed = feed
 
     # Need to overload onConnect and onChallenge to get ws connection over port 8001 to crossbar
     def onConnect(self):
@@ -43,7 +62,7 @@ class thermometry_server(sisock.base.DataNodeServer):
     def after_onJoin(self, details):
         print("session attached")
 
-        print('targeting observatory.{}.feeds.temperatures'.format(self.target))
+        print('targeting observatory.{}.feeds.{}'.format(self.target, self.feed))
 
         def cache_data(subscription_message):
             """Cache data from the LS372 Agent.
@@ -85,7 +104,7 @@ class thermometry_server(sisock.base.DataNodeServer):
                 # print("Got event: {}".format(a))
                 # print("data: {}".format(self.data))
 
-        yield self.subscribe(cache_data, u'observatory.{}.feeds.temperatures'.format(self.target))
+        yield self.subscribe(cache_data, u'observatory.{}.feeds.{}'.format(self.target, self.feed))
 
     def onDisconnect(self):
         print("disconnected")
@@ -163,7 +182,7 @@ if __name__ == '__main__':
     time.sleep(5)
 
     # Check variables setup when creating the Docker container.
-    required_env = ['TARGET', 'NAME', 'DESCRIPTION']
+    required_env = ['TARGET', 'NAME', 'DESCRIPTION', 'FEED']
 
     for var in required_env:
         try:
@@ -183,5 +202,6 @@ if __name__ == '__main__':
     runner.run(thermometry_server(ComponentConfig(u'test_realm', {}),
                                   name=environ['NAME'],
                                   description=environ['DESCRIPTION'],
+                                  feed=environ['FEED'],
                                   target=environ['TARGET'],
                                   buffer_time=buffer_length))
