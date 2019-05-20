@@ -183,4 +183,5 @@ if __name__ == '__main__':
     runner.run(thermometry_server(ComponentConfig(u'test_realm', {}),
                                   name=environ['NAME'],
                                   description=environ['DESCRIPTION'],
-                                  target=environ['TARGET']))
+                                  target=environ['TARGET'],
+                                  buffer_time=buffer_length))
