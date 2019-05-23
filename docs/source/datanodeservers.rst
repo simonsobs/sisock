@@ -108,19 +108,19 @@ at large time ranges, where fine resolution is not needed.
         - "sisock_grafana_http"
 
 
-thermometry
------------
-A ``DataNodeServer`` which is able to cache and serve live thermometry data
-from either a Lakeshore 372 or a Lakeshore 240. This ``DataNodeServer``
+data-feed
+---------
+A ``DataNodeServer`` which is able to subscribe to, cache, and serve live data
+from an OCS agent which publishes to an OCS Feed. This ``DataNodeServer``
 communicates with the crossbar server on an unencrypted port so as to enable
 subscription to the OCS data feeds.
 
-Data published by OCS thermometry Agents is cached in memory for up to an hour.
-Retrieval of data written to disk is a work in progress.
+Data published by OCS Agents is cached in memory for up to an hour. Any data
+with a timestamp older than an hour is removed from the cache.
 
 Configuration
 `````````````
-The image is called ``sisock-thermometry-server``, and should have the general
+The image is called ``sisock-data-feed-server``, and should have the general
 dependencies. 
 
 There are several environment variables which need to be set uniquely per
@@ -133,18 +133,29 @@ instance of the server:
    Variable     Description
    ===========  ============
    TARGET       Used for data feed subscription, must match the "instance-id" for the Agent as configured in your site-config file.
+   FEED         Used for data feed subscription. This must match the name of the ocs Feed which the ocs Agent publishes to.
    NAME         Used to uniquely identify the server in Grafana, appears in sisock in front of the field name.
    DESCRIPTION  Description for the device, is used by Grafana.
    ===========  ============
 
+The "TARGET" and "FEED" variables are used to construct the full crossbar
+address which is used for the subscription. This address ultimately looks like
+"observatory.TARGET.feeds.FEED". Failure to match to an address which has data
+published to it will result in no data being cached.
+
 .. code-block:: yaml
 
-    LSA23JD:
-      image: grumpy.physics.yale.edu/sisock-thermometry-server:latest
+    bluefors:
+      image: grumpy.physics.yale.edu/sisock-data-feed-server:latest
       environment:
-          TARGET: LSA23JD # match to instance-id of agent to monitor, used for data feed subscription
-          NAME: 'LSA23JD' # will appear in sisock a front of field name
-          DESCRIPTION: "LS372 in the Bluefors control cabinet."
+          TARGET: bluefors # match to instance-id of agent to monitor, used for data feed subscription
+          NAME: 'bluefors' # will appear in sisock a front of field name
+          DESCRIPTION: "bluefors logs"
+          FEED: "bluefors"
+      logging:
+        options:
+          max-size: "20m"
+          max-file: "10"
       depends_on:
         - "sisock-crossbar"
         - "sisock-http"

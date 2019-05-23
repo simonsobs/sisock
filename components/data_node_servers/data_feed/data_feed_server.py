@@ -17,21 +17,42 @@ from autobahn.twisted.wamp import ApplicationSession, ApplicationRunner
 import sisock
 
 
-class thermometry_server(sisock.base.DataNodeServer):
-    """
-    An application component that subscribes and receives events
-    of no payload and of complex payload, and stops after 5 seconds.
+class data_feed_server(sisock.base.DataNodeServer):
+    """A data server that subscribes to a single ocs data feed address,
+    recieves and caches data published to that feed, and returns that data when
+    queried.
+
+    Parameters
+    ----------
+    config : ComponentConfig
+        autobahn ComponentConfig
+    name : str
+        sisock data server name, used within sisock
+    description : str
+        sisock data server description, used within sisock
+    feed : str
+        ocs registered feed name i.e. 'temperatures', used for subscribing to
+        feed for data collection and caching
+    target : str
+        ocs agent target, i.e. "LSA22HA", used to assemble the complete
+        crossbar address for subscribing to a feed for data collection
+    buffer_time : int
+        amount of time, in seconds, to buffer data for live monitor
+
     """
     data = {}
 
-    def __init__(self, config, name, description, target=None, buffer_time=3600):
+    def __init__(self, config, name, description, feed, target=None,
+                 buffer_time=3600):
         ApplicationSession.__init__(self, config)
         self.target = target
         self.name = name
         self.description = description
         self.buffer_time = buffer_time
+        self.feed = feed
 
-    # Need to overload onConnect and onChallenge to get ws connection over port 8001 to crossbar
+    # Need to overload onConnect and onChallenge to get ws connection over port
+    # 8001 to crossbar
     def onConnect(self):
         self.log.info('transport connected')
         self.join(self.config.realm)
@@ -43,7 +64,8 @@ class thermometry_server(sisock.base.DataNodeServer):
     def after_onJoin(self, details):
         print("session attached")
 
-        print('targeting observatory.{}.feeds.temperatures'.format(self.target))
+        print('targeting observatory.{}.feeds.{}'.format(self.target,
+                                                         self.feed))
 
         def cache_data(subscription_message):
             """Cache data from the LS372 Agent.
@@ -59,8 +81,6 @@ class thermometry_server(sisock.base.DataNodeServer):
             # Check we're a DataNodeServer for the correct Agent.
             if feed_data['agent_address'] == 'observatory.{}'.format(self.target):
                 for block, value in message.items():
-                    print(block, value)
-
                     for channel, data_array in value['data'].items():
                         channel_name = channel.lower().replace(' ', '_')
 
@@ -76,16 +96,18 @@ class thermometry_server(sisock.base.DataNodeServer):
                         self.data[channel_name]['time'].extend(value['timestamps'])
 
                         # Clear data from buffer.
-                        buff_idx = sum(time.time() - \
+                        buff_idx = sum(time.time() -
                                        np.array(self.data[channel_name]['time']) > self.buffer_time)
                         self.data[channel_name]['time'] = self.data[channel_name]['time'][buff_idx:]
                         self.data[channel_name]['data'] = self.data[channel_name]['data'][buff_idx:]
 
+                print("Received published data from feed: observatory.{}.feeds.{}".format(self.target, self.feed))
+
                 # Debug printing. Do NOT leave on in production.
-                # print("Got event: {}".format(a))
+                # print("Got event: {}".format(subscription_message))
                 # print("data: {}".format(self.data))
 
-        yield self.subscribe(cache_data, u'observatory.{}.feeds.temperatures'.format(self.target))
+        yield self.subscribe(cache_data, u'observatory.{}.feeds.{}'.format(self.target, self.feed))
 
     def onDisconnect(self):
         print("disconnected")
@@ -109,7 +131,8 @@ class thermometry_server(sisock.base.DataNodeServer):
                     _data['data'][field_name] = []
 
                 # Get the data for this field from self.data within given time frame.
-                idx = np.where(np.logical_and(np.array(self.data[field_name]['time'])>=start, np.array(self.data[field_name]['time'])<=end))
+                idx = np.where(np.logical_and(np.array(self.data[field_name]['time']) >= start,
+                                              np.array(self.data[field_name]['time']) <= end))
                 _data['data'][field_name] = np.array(self.data[field_name]['data'])[idx[0]].tolist()
 
                 # _data['timeline']
@@ -118,7 +141,8 @@ class thermometry_server(sisock.base.DataNodeServer):
                 if _timeline_name not in _data['timeline']:
                     _data['timeline'][_timeline_name] = {'t': [], 'finalized_until': None}
 
-                _data['timeline'][_timeline_name]['t'] = np.array(self.data[field_name]['time'])[idx[0]].tolist()
+                _data['timeline'][_timeline_name]['t'] = \
+                    np.array(self.data[field_name]['time'])[idx[0]].tolist()
 
             except KeyError:
                 print("Received data query for field {} when it doesn't exist.".format(field_name))
@@ -163,7 +187,7 @@ if __name__ == '__main__':
     time.sleep(5)
 
     # Check variables setup when creating the Docker container.
-    required_env = ['TARGET', 'NAME', 'DESCRIPTION']
+    required_env = ['TARGET', 'NAME', 'DESCRIPTION', 'FEED']
 
     for var in required_env:
         try:
@@ -177,10 +201,12 @@ if __name__ == '__main__':
 
     # Start our component.
     # When running locally, not in a container.
-    runner = ApplicationRunner("ws://%s:%d/ws" % (sisock.base.SISOCK_HOST, \
-                                                   sisock.base.OCS_PORT), \
+    runner = ApplicationRunner("ws://%s:%d/ws" % (sisock.base.SISOCK_HOST,
+                                                  sisock.base.OCS_PORT),
                                sisock.base.REALM)
-    runner.run(thermometry_server(ComponentConfig(u'test_realm', {}),
-                                  name=environ['NAME'],
-                                  description=environ['DESCRIPTION'],
-                                  target=environ['TARGET']))
+    runner.run(data_feed_server(ComponentConfig(u'test_realm', {}),
+                                name=environ['NAME'],
+                                description=environ['DESCRIPTION'],
+                                feed=environ['FEED'],
+                                target=environ['TARGET'],
+                                buffer_time=buffer_length))
