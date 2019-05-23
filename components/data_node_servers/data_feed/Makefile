@@ -1,4 +1,4 @@
-NAME=sisock-thermometry-server
+NAME=sisock-data-feed-server
 
 build :
 	docker build -t ${NAME} .

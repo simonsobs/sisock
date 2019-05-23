@@ -83,11 +83,11 @@ services:
       - "sisock"
 
   # --------------------------------------------------------------------------
-  # Data node server: Thermometry OCS subscriber
+  # Data node server: OCS data feed subscriber
   # --------------------------------------------------------------------------
-  sisock-thermometry-server:
-    image: "sisock-thermometry-server"
-    build: ./components/data_node_servers/thermometry/
+  sisock-data-feed-server:
+    image: "sisock-data-feed-server"
+    build: ./components/data_node_servers/data_feed/
     depends_on:
       - "sisock"
 

@@ -11,7 +11,7 @@ ENV TZ=Etc/UTC
 WORKDIR /app
 
 # Copy the current directory contents into the container at /app
-COPY thermometry_server.py /app/
+COPY data_feed_server.py /app/
 
 # Run app.py when the container launches
-CMD ["python3", "-u", "thermometry_server.py"]
+CMD ["python3", "-u", "data_feed_server.py"]
