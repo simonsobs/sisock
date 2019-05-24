@@ -1,4 +1,4 @@
 autobahn[serialization]
-crossbar
+crossbar==19.3.5
 numpy
 twisted
