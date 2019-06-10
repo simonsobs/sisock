@@ -25,11 +25,11 @@ TLS Certificate Generation
 The crossbar server can handle secure connections using TLS certificates. The
 live monitor uses this secure connection capability, and as a result we need to
 generate a set of self-signed TLS certificates. To do this we just need to run
-the ``setup-tls.sh`` script. Simply enter your new directory and run it (swap
+the ``setup_tls.py`` script. Simply enter your new directory and run it (swap
 ``yale`` for your institution)::
 
     $ cd yale/
-    $ ./setup-tls.sh
+    $ ./setup_tls.py
 
 This will generate the required certificates and put them in a directory called
 ``.crossbar/`` (which already existed in the copied template directory). 

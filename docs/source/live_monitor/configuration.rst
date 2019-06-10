@@ -16,12 +16,18 @@ Docker Compose is used to manage all the containers required to run the live
 monitor software. The Docker Compose configuration file defines the containers
 that we will control.
 
-The ocs site configs templates provide two templates for
-this file, one for production use, and one for development. If you are in doubt
-of which to pick, use the production one. The file should be renamed to
-``docker-compose.yaml``, as this is the default file parsed by
-``docker-compose``. A configuration file can also be specified with the ``-f``
-flag.
+The ocs site configs templates provide a simple template
+`docker-compose.yaml` file which configures some of the essential container.
+
+.. note::
+    The filename is important here, as the `docker-compose.yaml` path is the
+    default one parsed by the docker-compose tool. A configuration file can be
+    specified with the `-f` flag.
+
+.. note:: 
+    If you are interested in developing containers related to sisock, you might
+    be interested in checking out the "dev-mode" template.
+
 
 The template configuration does not contain all available containers.  Details
 about more containers can either be found in the `sisock documentation`_ or in
@@ -29,7 +35,7 @@ the socs and ocs documentation.
 
 .. _`sisock documentation`: https://grumpy.physics.yale.edu/docs/sisock/
 
-The template ``docker-compose.yml`` file, looks something like this::
+The template `docker-compose.yaml` file, looks something like this::
 
     version: '2'
     volumes:
@@ -96,7 +102,7 @@ The template ``docker-compose.yml`` file, looks something like this::
         image: grumpy.physics.yale.edu/ocs-registry-agent:latest
         hostname: ocs-docker
         volumes:
-          - /home/so_user/git/ocs-site-configs/yale/prod/:/config:ro
+          - ${OCS_CONFIG_DIR}:/config:ro
         depends_on:
           - "sisock-crossbar"
 
@@ -105,16 +111,17 @@ The template ``docker-compose.yml`` file, looks something like this::
         hostname: ocs-docker
         user: "9000"
         volumes:
-          - /home/so_user/git/ocs-site-configs/yale/prod/:/config:ro
+          - ${OCS_CONFIG_DIR}:/config:ro
           - "/data:/data"
         depends_on:
           - "sisock-crossbar"
 
-.. note::
+
+.. warning::
 
     Bind mounts are a system unique property. This is especially true for ones
-    which use absolute paths, for instance the volumes defined for the OCS Agent
-    containers. These will need to be updated for your system.
+    which use absolute paths. If they exist in any reference configuration
+    file, they will need to be updated for your system.
 
 Understanding what is going on in this configuration file is key to getting a
 system that is working smoothly. The Docker Compose reference_ explains the
@@ -172,12 +179,19 @@ means Docker Compose will wait for the listed containers to start before
 starting this container. This does not mean the services will be ready, but the
 container will be started.
 
+.. note::
+    Environment variables can be used within a docker-compose configuration
+    file. This is done for the `OCS_CONFIG_DIR` mount for the OCS agents in the
+    default template.  For more information see the `docker compose
+    documentation`_.
+
 For more details on configurations for individual containers, see the service
 documentation pages, for instance in the `sisock documentation`_ or in the
 respective ocs agent pages.
 
 .. _reference: https://docs.docker.com/compose/compose-file/compose-file-v2/
 .. _sisock: https://github.com/simonsobs/sisock
+.. _`docker compose documentation`: https://docs.docker.com/compose/environment-variables/
 
 OCS
 ---

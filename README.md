@@ -43,7 +43,7 @@ local development, you can make a copy of this directory elsewhere.
 > gets pushed to the public DockerHub.
 
 A default configuration can be found in the `templates` directory.
-You will need first to run `setup-tls.sh` to generate encryption certificates in
+You will need first to run `setup_tls.py` to generate encryption certificates in
 `templates/.crossbar`
 
 > **Important**: the ‘common name’ (CN) of the certificate should be
@@ -77,7 +77,7 @@ instructions.
 
 > If not, instead of using `templates/docker-compose_dev-mode.yaml` from
 > `ocs-site-configs`, you could use
-> `templates/docker-compose_production-mode.yaml`. In this case, you actually
+> `templates/docker-compose.yaml`. In this case, you actually
 > don't need any of the `sisock` code locally, since it pulls all the docker 
 > images from `grumpy.physics.yale.edu`: see below for how to access images
 > from this computer.
