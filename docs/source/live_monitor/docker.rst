@@ -7,12 +7,17 @@ Our dependencies are met, the environment setup, and the configuration files
 configured; Now we're ready to run Docker. From your institution configuration
 directory (where the ``docker-compose.yml`` file is), run::
 
-    $ docker-compose up -d
+    $ sudo -E docker-compose up -d
 
 .. note::
     The ``-d`` flag daemonizes the containers. If you remove it the output from
     every container will be attached to your terminal. This can be useful for
     debugging.
+
+.. note::
+    The ``-E`` flag on sudo preserves the existing environment variables. This
+    is needed as we use the `OCS_CONFIG_DIR` variable within the docker-compose
+    file.
 
 You can confirm the running state of the containers with the ``docker ps``
 command::
