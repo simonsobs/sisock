@@ -30,6 +30,7 @@ Constants
 
 import six
 import time
+from os import environ
 from autobahn.twisted.component import Component, run
 from autobahn.twisted.util import sleep
 from autobahn.twisted.wamp import ApplicationSession, ApplicationRunner
@@ -39,12 +40,12 @@ from twisted.python.failure import Failure
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet import threads
 
-WAMP_USER   = u"server"
-WAMP_SECRET = u"Q5#x4%HCmgTsS!Pj"
+WAMP_USER   = environ.get("WAMP_USER", u"server")
+WAMP_SECRET = environ.get("WAMP_SECRET", u"Q5#x4%HCmgTsS!Pj")
 WAMP_URI    = u"wss://127.0.0.1:8080/ws"
-SISOCK_HOST = u"sisock-crossbar"
-SISOCK_PORT = 8080
-OCS_PORT    = 8001
+SISOCK_HOST = environ.get("CROSSBAR_HOST", u"sisock-crossbar")
+SISOCK_PORT = int(environ.get("CROSSBAR_TLS_PORT", 8080))
+OCS_PORT    = int(environ.get("CROSSBAR_OCS_PORT", 8001))
 REALM       = u"test_realm"
 BASE_URI    = u"org.simonsobservatory"
 

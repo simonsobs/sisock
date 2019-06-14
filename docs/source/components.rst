@@ -104,3 +104,30 @@ and only depends on the database we store file information in.
         SCAN_INTERVAL: 3600 # seconds
     depends_on:
       - "database"
+
+Common Configuration
+--------------------
+There are some environment variables which are common among all sisock
+components. These mostly relate to connection settings for the crossbar server.
+The defaults will work for a simple, single node, setup. However, moving to
+multiple nodes, in most cases, will require setting some of these.
+
+.. table::
+   :widths: auto
+
+   =================   ============
+   Option              Description
+   =================   ============
+   WAMP_USER           The username configured for connecting to the crossbar
+                       server. This is the "role" in the crossbar config.
+   WAMP_SECRET         The associated secret for the WAMP_USER.
+   CROSSBAR_HOST       IP or domain name for the crossbar server.
+   CROSSBAR_TLS_PORT   The port configured for secure connection to the
+                       crossbar server. In default SO configurations this is 8080.
+   CROSSBAR_OCS_PORT   The port configured for open connection to the crossbar
+                       server. In default SO configurations this is 8001.
+   =================   ============
+
+.. warning::
+    The default `WAMP_SECRET` is not secure. If you are deploying your crossbar
+    server in a public manner, you should not use the default secret.
