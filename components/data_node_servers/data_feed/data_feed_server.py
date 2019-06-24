@@ -8,7 +8,7 @@ import numpy as np
 
 from os import environ
 
-from twisted.internet import reactor
+from twisted.internet import reactor, threads
 from twisted.internet.defer import inlineCallbacks
 
 from autobahn.wamp.types import ComponentConfig
@@ -67,47 +67,61 @@ class data_feed_server(sisock.base.DataNodeServer):
         print('targeting observatory.{}.feeds.{}'.format(self.target,
                                                          self.feed))
 
+        @inlineCallbacks
         def cache_data(subscription_message):
-            """Cache data from the LS372 Agent.
+            """Cache data from an OCS data feed.
 
-            Args:
-                subscription_message (tuple): Data from the OCS subscription feed.
-                                              See OCS Feed documentation for
-                                              message structure.
+            Parameters
+            ----------
+            subscription_message : tuple
+                Data from the OCS subscription feed. See OCS Feed
+                documentation for message structure.
 
             """
             message, feed_data = subscription_message
 
             # Check we're a DataNodeServer for the correct Agent.
             if feed_data['agent_address'] == 'observatory.{}'.format(self.target):
-                for block, value in message.items():
-                    for channel, data_array in value['data'].items():
-                        channel_name = channel.lower().replace(' ', '_')
+                yield threads.deferToThread(self.extend_data, message)
+                print("Received published data from feed: " +
+                      "observatory.{}.feeds.{}".format(self.target, self.feed))
 
-                        if channel_name not in self.data.keys():
-                            self.data[channel_name] = {"time": [], "data": []}
+        topic_uri = u'observatory.{}.feeds.{}'.format(self.target, self.feed)
+        yield self.subscribe(cache_data, topic_uri)
 
-                        # Cache latest data point.
-                        self.data[channel_name]['data'].extend(value['data'][channel])
-                        # This could be improved. We're caching a copy of the
-                        # timestamps array for each channel, which is
-                        # inefficient for the 240s, but used to make sense in
-                        # the old feed scheme
-                        self.data[channel_name]['time'].extend(value['timestamps'])
+    def extend_data(self, message):
+        """Extend data in the cache recieved in message.
 
-                        # Clear data from buffer.
-                        buff_idx = sum(time.time() -
-                                       np.array(self.data[channel_name]['time']) > self.buffer_time)
-                        self.data[channel_name]['time'] = self.data[channel_name]['time'][buff_idx:]
-                        self.data[channel_name]['data'] = self.data[channel_name]['data'][buff_idx:]
+        This operation was slow enough to cause issues when run in the reactor
+        thread. Be sure to call with deferToThread().
 
-                print("Received published data from feed: observatory.{}.feeds.{}".format(self.target, self.feed))
+        Parameters
+        ----------
+        message
+            message from OCS subscription feed. See OCS Feed documentation for
+            message structure.
 
-                # Debug printing. Do NOT leave on in production.
-                # print("Got event: {}".format(subscription_message))
-                # print("data: {}".format(self.data))
+        """
+        for block, value in message.items():
+            for channel, data_array in value['data'].items():
+                channel_name = channel.lower().replace(' ', '_')
 
-        yield self.subscribe(cache_data, u'observatory.{}.feeds.{}'.format(self.target, self.feed))
+                if channel_name not in self.data.keys():
+                    self.data[channel_name] = {"time": [], "data": []}
+
+                # Cache latest data point.
+                self.data[channel_name]['data'].extend(value['data'][channel])
+                # This could be improved. We're caching a copy of the
+                # timestamps array for each channel, which is
+                # inefficient for the 240s, but used to make sense in
+                # the old feed scheme
+                self.data[channel_name]['time'].extend(value['timestamps'])
+
+                # Clear data from buffer.
+                buff_idx = sum(time.time() -
+                               np.array(self.data[channel_name]['time']) > self.buffer_time)
+                self.data[channel_name]['time'] = self.data[channel_name]['time'][buff_idx:]
+                self.data[channel_name]['data'] = self.data[channel_name]['data'][buff_idx:]
 
     def onDisconnect(self):
         print("disconnected")
