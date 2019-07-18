@@ -78,10 +78,17 @@ If you want to follow the logs (much like you would ``tail -f`` a file) you can 
 
 Updating Containers
 ```````````````````
-If you have made changes to the docker compose configuration you can update
-your containers by running ``docker-compose up`` again. This will rebuild any
-containers that have been updated. You can also restart individual containers
-with::
+If you have made changes to the docker compose configuration you need to update
+your containers by running the up command again::
+
+    $ sudo -E docker-compose -d
+
+This will rebuild any containers that have been updated.
+
+Restarting Containers
+`````````````````````
+If need to just restart a container, and haven't made any changes to your
+docker-compose configuration file you can do so with::
 
     $ sudo docker-compose restart <container name>
 
