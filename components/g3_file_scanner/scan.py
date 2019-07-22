@@ -4,6 +4,7 @@ from os import environ
 from datetime import datetime
 
 import mysql.connector
+from mysql.connector import errorcode
 
 import so3g
 from spt3g import core
@@ -180,6 +181,24 @@ def add_fields_and_times_to_db(frame, cur, r, f):
         pass
 
 # Non-G3 Modules
+def _create_database(cursor, db_name):
+    """Create database in SQL database conncted to cursor.
+
+    Parameters
+    ----------
+    cursor : mysql.connector.cursor()
+        Cursor for MySQL connection
+    db_name : str
+        Name for the DB
+
+    """
+    try:
+        cursor.execute(
+            "CREATE DATABASE {} DEFAULT CHARACTER SET 'utf8'".format(db_name))
+    except mysql.connector.Error as err:
+        print("Failed creating database: {}".format(err))
+        exit(1)
+
 def init_tables(config):
     """Initialize the tables if they don't exist.
 
@@ -192,10 +211,23 @@ def init_tables(config):
     # Establish DB connection.
     cnx = mysql.connector.connect(host=config['host'],
                                   user=config['user'],
-                                  passwd=config['passwd'],
-                                  db=config['db'])
+                                  passwd=config['passwd'])
     cur = cnx.cursor()
     print("SQL server connection established")
+
+    # Create DB if it doesn't already exist.
+    # https://dev.mysql.com/doc/connector-python/en/connector-python-example-ddl.html
+    try:
+        cur.execute("USE {}".format(config['db']))
+    except mysql.connector.Error as err:
+        print("Database {} does not exists.".format(config['db']))
+        if err.errno == errorcode.ER_BAD_DB_ERROR:
+            _create_database(cur, config['db'])
+            print("Database {} created successfully.".format(config['db']))
+            cnx.database = config['db']
+        else:
+            print(err)
+            exit(1)
 
     # Check what tables exist, create the tables we need if they don't exist.
     table_query = cur.execute("SHOW tables;")
