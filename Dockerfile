@@ -2,7 +2,7 @@
 # A containerized sisock installation.
 
 # Build on so3g base image
-FROM grumpy.physics.yale.edu/so3g:v0.0.4-30-g6c53c04
+FROM simonsobs/so3g:v0.0.4-32-g7b9a908
 
 # Set timezone to UTC
 ENV TZ=Etc/UTC
