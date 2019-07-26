@@ -2,6 +2,7 @@
 
 [![travis badge](https://travis-ci.com/simonsobs/sisock.svg?branch=master)](https://travis-ci.com/simonsobs/sisock)
 [![Documentation Status](https://readthedocs.org/projects/sisock/badge/?version=latest)](https://sisock.readthedocs.io/en/latest/?badge=latest)
+[![Coverage Status](https://coveralls.io/repos/github/simonsobs/sisock/badge.svg?branch=master)](https://coveralls.io/github/simonsobs/sisock?branch=master)
 
 ## Brief Overview
 

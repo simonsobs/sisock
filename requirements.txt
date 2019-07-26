@@ -2,3 +2,8 @@ autobahn[serialization]
 crossbar==19.3.5
 numpy
 twisted
+
+# testing
+pytest
+pytest-cov
+coveralls
