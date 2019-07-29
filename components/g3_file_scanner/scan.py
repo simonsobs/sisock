@@ -11,6 +11,7 @@ import so3g
 from spt3g import core
 from spt3g.core import G3FrameType
 
+
 def _extract_feeds_from_status_frame(frame):
     """Get the prov_id and description from each provider in an HKStatus frame.
 
@@ -28,6 +29,7 @@ def _extract_feeds_from_status_frame(frame):
         feeds.append((prov_id, description))
 
     return feeds
+
 
 # G3 Modules
 def add_files_to_feeds_table(frame, cur, cnx, r, f):
@@ -95,6 +97,7 @@ def add_files_to_feeds_table(frame, cur, cnx, r, f):
                          VALUES \
                              (%s, %s, %s)", (file_id, prov_id, description))
 
+
 def add_fields_and_times_to_db(frame, cur, r, f):
     """Parse the frames, gathering field information such as start/end times.
 
@@ -131,13 +134,13 @@ def add_fields_and_times_to_db(frame, cur, r, f):
 
     if result is not None:
         feed_id = result[0]
-        scanned = bool(result[1]) # True if already scanned by this script.
+        scanned = bool(result[1])  # True if already scanned by this script.
     else:
-        raise Exception("%s is not in feed database, something went wrong."%(f))
+        raise Exception("%s is not in feed database, something went wrong." % (f))
 
     if not scanned:
         # Get start and end times for each field within this frame.
-        print("Adding %s/%s to G3Reader"%(r, f))
+        print("Adding %s/%s to G3Reader" % (r, f))
         start_times = {}
         end_times = {}
         for block in frame['blocks']:
@@ -198,8 +201,9 @@ def add_fields_and_times_to_db(frame, cur, r, f):
                                      AND field=%s", (_end, feed_id, field))
     else:
         # debug print
-        #print("%s/%s containing feed %s has already been scanned, skipping."%(r, f, feed))
+        # print("%s/%s containing feed %s has already been scanned, skipping."%(r, f, feed))
         pass
+
 
 # Non-G3 Modules
 def _create_database(cursor, db_name):
@@ -219,6 +223,7 @@ def _create_database(cursor, db_name):
     except mysql.connector.Error as err:
         print("Failed creating database: {}".format(err))
         exit(1)
+
 
 def init_tables(config, version):
     """Initialize the tables if they don't exist.
@@ -319,6 +324,7 @@ def init_tables(config, version):
     cur.close()
     cnx.close()
 
+
 def _update_v0_to_v1(connection, cursor):
     """Update DB structure v0 to structure v1.
 
@@ -392,6 +398,7 @@ def _update_v0_to_v1(connection, cursor):
     cursor.execute("UPDATE db_structure SET version=1")
     connection.commit()
 
+
 def update_db_structure(config, version):
     """Update the DB structure of an already initialized database.
 
@@ -431,6 +438,7 @@ def update_db_structure(config, version):
         else:
             print("DB structure is update to date.")
 
+
 def scan_directory(directory, config):
     """Scan a given directory for .g3 files, adding them to the Database.
 
@@ -450,7 +458,6 @@ def scan_directory(directory, config):
     cur = cnx.cursor()
     print("SQL server connection established")
 
-
     # Gather all files we want to scan.
     a = os.walk(directory)
 
@@ -460,7 +467,7 @@ def scan_directory(directory, config):
             if g3[-2:] == "g3":
                 try:
                     p = core.G3Pipeline()
-                    #print("Adding %s/%s to G3Reader"%(root, g3))
+                    # print("Adding %s/%s to G3Reader"%(root, g3))
                     p.Add(core.G3Reader, filename=os.path.join(root, g3))
                     p.Add(add_files_to_feeds_table, cur=cur, cnx=cnx, r=root, f=g3)
                     p.Add(add_fields_and_times_to_db, cur=cur, r=root, f=g3)
@@ -536,15 +543,14 @@ def build_description_table(config):
     total_time = time.time() - t
     print("Total Time:", total_time)
 
-def _get_availability(filename, path):
+
+def _get_availability(filename):
     """Confirm the file is available by confirming the file is there.
 
     Parameters
     ----------
     filename : str
-        basename of the file
-    path : str
-        directory path to the file
+        full path to the file to check availability of
 
     Returns
     -------
@@ -552,11 +558,25 @@ def _get_availability(filename, path):
         1 if True, 0 if False. This maps into the DB structure.
 
     """
-    full_path = os.path.join(path, filename)
-    result = os.path.isfile(full_path)
+    result = os.path.isfile(filename)
     return int(result)
 
+
 def _unixtime2sql(time_):
+    """Format a unix timestamp for insertion into an SQL table.
+
+    Parameters
+    ----------
+    time_ : float
+        Unix timestamp (i.e. ctime)
+
+    Returns
+    -------
+    str
+        String formatted timestamp for SQL insertion, formatted like
+        %Y-%m-%d %H:%M:%S.%f
+
+    """
     # datetime object format
     time_dt = datetime.fromtimestamp(time_)
 
@@ -564,6 +584,7 @@ def _unixtime2sql(time_):
     sql_str = time_dt.strftime("%Y-%m-%d %H:%M:%S.%f")
 
     return sql_str
+
 
 def _sql2unix(time_, fraction=False):
     """Convert SQL formatted time string to unix timestamp.
@@ -591,23 +612,34 @@ def _sql2unix(time_, fraction=False):
 
     return unix
 
-def _get_last_modified_date(filename, path):
 
-    full_path = os.path.join(path, filename)
-    unix = os.stat(full_path).st_ctime
+def _get_last_modified_date(filename):
+    """Determine the last modified date of a file.
+
+    Parameters
+    ----------
+    filename : str
+        full path to file to compute size of
+
+    Returns
+    -------
+    str
+        Date the file was last modified, formatted for sql table input
+
+    """
+    unix = os.stat(filename).st_ctime
     sql_str = _unixtime2sql(unix)
 
     return sql_str
 
-def _get_size(filename, path):
+
+def _get_size(filename):
     """Get the filesize in bytes.
 
     Parameters
     ----------
     filename : str
-        basename of the file
-    path : str
-        directory path to the file
+        full path to file to compute size of
 
     Returns
     -------
@@ -615,21 +647,37 @@ def _get_size(filename, path):
         Size of the file in bytes.
 
     """
-    full_path = os.path.join(path, filename)
-    result = os.path.getsize(full_path)
+    result = os.path.getsize(filename)
     return result
 
+
 def _md5sum(filename, blocksize=65536):
-    # https://stackoverflow.com/questions/3431825/generating-an-md5-checksum-of-a-file
+    """Compute md5sum of a file.
+
+    References
+    ----------
+    - https://stackoverflow.com/questions/3431825/generating-an-md5-checksum-of-a-file
+
+    Parameters
+    ----------
+    filename : str
+        Full path to file for which we want the md5
+    blocksize : int
+        blocksize we want to read the file in chunks of to avoid fitting the
+        whole file into memory. Defaults to 65536
+
+    Returns
+    -------
+    str
+        Hex string representing the md5sum of the file
+
+    """
     hash_ = hashlib.md5()
     with open(filename, "rb") as f:
         for block in iter(lambda: f.read(blocksize), b""):
             hash_.update(block)
     return hash_.hexdigest()
 
-def _get_md5sum(filename, path):
-    full_path = os.path.join(path, filename)
-    return _md5sum(full_path)
 
 def gather_new_file_info(config):
     """Gather information about new files that have yet to be scanned.
@@ -660,14 +708,15 @@ def gather_new_file_info(config):
     files = cur.fetchall()
 
     for filename, path in files:
-        print("Updating info for:", filename)
-        available = _get_availability(filename, path)
+        full_path = os.path.join(path, filename)
+        print("Updating info for:", full_path)
+        available = _get_availability(full_path)
         if available:
             seen = _unixtime2sql(time.time())
             print("Last seen:", seen)
-        modified_date = _get_last_modified_date(filename, path)
-        size = _get_size(filename, path)
-        md5 = _get_md5sum(filename, path)
+        modified_date = _get_last_modified_date(full_path)
+        size = _get_size(full_path)
+        md5 = _md5sum(full_path)
 
         cur.execute("UPDATE file_info \
                      SET \
@@ -688,6 +737,7 @@ def gather_new_file_info(config):
 
     total_time = time.time() - t
     print("Total Time to gather file info:", total_time)
+
 
 def check_old_file_info(config):
     """Check on old files, updating information in file_info table
@@ -718,22 +768,23 @@ def check_old_file_info(config):
     files = cur.fetchall()
 
     for filename, path, last_modified, seen, known_size, known_md5 in files:
+        full_path = os.path.join(path, filename)
         print("Updating info for:", filename)
-        available = _get_availability(filename, path)
+        available = _get_availability(full_path)
         if available:
             seen = _unixtime2sql(time.time())
             print("Last seen:", seen)
 
-            modified_date = _get_last_modified_date(filename, path)
+            modified_date = _get_last_modified_date(full_path)
             if _sql2unix(modified_date, fraction=True) > int(last_modified.strftime("%s")):
-                print("{} has been modified, updating size, md5sum, and modified date".format(os.path.join(path, filename)))
-                md5 = _get_md5sum(filename, path)
+                print("{} has been modified, updating size, md5sum, and modified date".format(full_path))
+                md5 = _md5sum(full_path)
                 if known_md5 != md5:
-                    print("md5sum has changed for {}".format(os.path.join(path, filename)))
+                    print("md5sum has changed for {}".format(full_path))
                     # TODO: Need to now rescan the file, set scanned to 0? (is
                     # that sufficient? might need to first remove fields for
                     # the file)
-                size = _get_size(filename, path)
+                size = _get_size(full_path)
             else:
                 size = known_size
                 md5 = known_md5
