@@ -1,4 +1,5 @@
 from . import base
+from . import db
 
 from ._version import get_versions
 __version__ = get_versions()['version']
