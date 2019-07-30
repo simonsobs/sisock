@@ -7,3 +7,4 @@ twisted
 pytest
 pytest-cov
 coveralls
+pytest-docker-compose
