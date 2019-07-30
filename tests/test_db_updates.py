@@ -173,4 +173,4 @@ def test_schema_v0_to_v1_update(wait_for_sql):
     print(output, error)
 
 def test_unix2sql():
-    assert _unixtime2sql(1564434601.916555) == '2019-07-29 17:10:01.916555'
+    assert _unixtime2sql(1564434601.916555) == '2019-07-29 21:10:01.916555'

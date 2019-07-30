@@ -350,7 +350,7 @@ def _unixtime2sql(time_):
 
     """
     # datetime object format
-    time_dt = datetime.fromtimestamp(time_)
+    time_dt = datetime.utcfromtimestamp(time_)
 
     # String formatting for SQL query
     sql_str = time_dt.strftime("%Y-%m-%d %H:%M:%S.%f")
