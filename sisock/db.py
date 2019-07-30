@@ -96,6 +96,7 @@ def update_db_structure(config, version):
     """
     # Establish DB connection.
     cnx = mysql.connector.connect(host=config['host'],
+                                  port=config.get('port', 3306),
                                   user=config['user'],
                                   passwd=config['passwd'],
                                   db=config['db'])
@@ -149,6 +150,7 @@ def init_tables(config, version):
     """
     # Establish DB connection.
     cnx = mysql.connector.connect(host=config['host'],
+                                  port=config.get('port', 3306),
                                   user=config['user'],
                                   passwd=config['passwd'])
     cur = cnx.cursor()
@@ -183,12 +185,10 @@ def init_tables(config, version):
         print("Initializing feeds and fields tables.")
         cur.execute("CREATE TABLE feeds \
                          (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, \
-                          filename varchar(255), \
-                          path varchar(255), \
+                          file_id INT, \
                           prov_id INT, \
-                          description varchar(255), \
-                          scanned BOOL NOT NULL DEFAULT 0)")
-        cur.execute("CREATE UNIQUE INDEX feed_index ON feeds (`filename`, `prov_id`)")
+                          description varchar(255))")
+        cur.execute("CREATE UNIQUE INDEX feed_index ON feeds (`file_id`, `prov_id`)")
         cur.execute("CREATE TABLE fields \
                          (feed_id INT NOT NULL, \
                           field varchar(255), \
