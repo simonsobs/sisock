@@ -7,9 +7,12 @@ from datetime import datetime
 import mysql.connector
 from mysql.connector import errorcode
 
-import so3g
-from spt3g import core
-from spt3g.core import G3FrameType
+on_travis = os.environ.get('TRAVIS') == 'true'
+print('On Travis?:', on_travis)
+if not on_travis:
+    import so3g
+    from spt3g import core
+    from spt3g.core import G3FrameType
 
 from sisock.db import update_db_structure, init_tables
 
