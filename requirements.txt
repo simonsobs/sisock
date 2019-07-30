@@ -2,6 +2,9 @@ autobahn[serialization]
 crossbar==19.3.5
 numpy
 twisted
+PyYAML==3.13
+requests==2.20.1
+mysql-connector
 
 # testing
 pytest
