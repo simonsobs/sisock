@@ -129,19 +129,26 @@ instance of the server:
 .. table::
    :widths: auto
 
-   ===========  ============
-   Variable     Description
-   ===========  ============
-   TARGET       Used for data feed subscription, must match the "instance-id" for the Agent as configured in your site-config file.
-   FEED         Used for data feed subscription. This must match the name of the ocs Feed which the ocs Agent publishes to.
-   NAME         Used to uniquely identify the server in Grafana, appears in sisock in front of the field name.
-   DESCRIPTION  Description for the device, is used by Grafana.
-   ===========  ============
+   =================  ============
+   Variable           Description
+   =================  ============
+   TARGET             Used for data feed subscription, must match the "instance-id" for the Agent as configured in your site-config file.
+   FEED               Used for data feed subscription. This must match the name of the ocs Feed which the ocs Agent publishes to.
+   NAME               Used to uniquely identify the server in Grafana, appears in sisock in front of the field name.
+   DESCRIPTION        Description for the device, is used by Grafana.
+   CROSSBAR_HOST      Address for the crossbar server
+   CROSSBAR_TLS_PORT  Port for TLS communication to the crossbar server
+   =================  ============
 
 The "TARGET" and "FEED" variables are used to construct the full crossbar
 address which is used for the subscription. This address ultimately looks like
 "observatory.TARGET.feeds.FEED". Failure to match to an address which has data
 published to it will result in no data being cached.
+
+The "CROSSBAR_HOST" and "CROSSBAR_TLS_PORT" variables are useful when setting
+up a multi-node system. If hosted on the same computer the host is typically
+'sisock-crossbar', else it will be the IP of the computer hosting it. The TLS
+port, unless changed in the crossbar configuration, should be 8080.
 
 .. code-block:: yaml
 
