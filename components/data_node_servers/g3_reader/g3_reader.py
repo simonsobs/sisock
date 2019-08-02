@@ -102,9 +102,10 @@ def _read_data_from_disk(data_cache, file_list):
     for _file in file_list:
         # Only load data if not already in the cache
         if _file not in data_cache:
+            print("{} not in data_cache, loading".format(_file))
             file_cache = _load_g3_file(_file)
             if file_cache is not None:
-                data_cache[_file] = _load_g3_file(_file)
+                data_cache[_file] = file_cache
 
     return data_cache
 
@@ -122,7 +123,7 @@ def _load_g3_file(_f):
                     stored in the .g3 file.
 
     """
-
+    t = time.time()
     # Dependent on the actual .g3 internal format. Will also need updating when
     # so3g format finalized.
     cache_data = {'Timestamps': {},
@@ -143,6 +144,9 @@ def _load_g3_file(_f):
     # very much a debug statement, do not leave on in production (we really
     # need a better logging system...)
     #print("loaded data from file", cache_data)
+    total_time_data = time.time() - t
+    print("Time to read %s:" % _f, total_time_data)
+
     return cache_data
 
 def _read_data_to_cache(frame, cache, prov_map):
@@ -228,6 +232,7 @@ def _format_data_cache_for_sisock(cache, start, end, max_points=0):
     filenames = list(cache.keys())
     filenames.sort()
 
+    t = time.time()
     for filename in filenames:
         contents = cache[filename]
         for field, data in contents['Timestamps'].items():
@@ -248,15 +253,20 @@ def _format_data_cache_for_sisock(cache, start, end, max_points=0):
             #print("LOOK", contents['TODs'][field])
             _data['data'][field] += np.array(contents['TODs'][field])[t_idx].tolist()
 
+    print("Time spent organizing data: {}".format(time.time() - t))
+
+    t = time.time()
     # Determine 'finalized_until' time for each timeline
     for field in _data['timeline']:
         try:
             _data['timeline'][field]['finalized_until'] = np.max(_data['timeline'][field]['t'])
         except Exception as e:
             _data['timeline'][field]['finalized_until'] = None
-            print("%s occured on field '%s', unable to determine 'finalized_until' time, \
-                  setting to None..." % (type(e), field))
+            print("%s occured on field '%s', unable to determine ".format((type(e), field)) +
+                  "'finalized_until' time, setting to None...")
+    print("Time spent finding finalized_until: {}".format(time.time() - t))
 
+    t = time.time()
     # Limit maximum number of points to return.
     if max_points != 0:
         for field in _data['data']:
@@ -266,6 +276,7 @@ def _format_data_cache_for_sisock(cache, start, end, max_points=0):
                 _data['data'][field] = np.array(_data['data'][field])[limiter].tolist()
                 _data['timeline'][field]['t'] = np.array(_data['timeline'][field]['t'])[limiter].tolist()
                 _data['timeline'][field]['finalized_until'] = _data['timeline'][field]['t'][-1]
+    print("Time spent downsampling: {}".format(time.time() - t))
 
     return _data
 
@@ -376,6 +387,9 @@ class G3ReaderServer(sisock.base.DataNodeServer):
         API.
 
         """
+        # Profiling the get_fields method
+        t_data = time.time()
+
         # Establish DB connection
         cnx = mysql.connector.connect(host=self.sql_config['host'],
                                       user=self.sql_config['user'],
@@ -397,13 +411,19 @@ class G3ReaderServer(sisock.base.DataNodeServer):
 
         #print("data_cache contains:", self.data_cache) # debug
 
+        t = time.time()
         _formatting = _format_data_cache_for_sisock(self.data_cache, start,
                                                     end, max_points=self.max_points)
+        t_ellapsed = time.time() - t
+        print("Formatted data in: {} seconds".format(t_ellapsed))
         #print("Formatted data:", _formatting) # debug
 
         # Close DB connection
         cur.close()
         cnx.close()
+
+        total_time_data = time.time() - t_data
+        print("Time to get data:", total_time_data)
 
         return _formatting
 
