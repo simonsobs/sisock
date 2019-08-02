@@ -61,12 +61,13 @@ def _build_file_list(cur, start, end):
     end_str = end_dt.strftime("%Y-%m-%d %H-%M-%S.%f")
 
     print("Querying database for filelist")
-    cur.execute("SELECT path, filename \
-                 FROM feeds \
-                 WHERE id IN (SELECT DISTINCT feed_id \
-                              FROM fields \
-                              WHERE end > %s \
-                              AND start < %s)", (start_str, end_str))
+    cur.execute("SELECT I.path, I.filename \
+                 FROM file_info I \
+                 JOIN feeds E on I.id = E.file_id \
+                 WHERE E.id IN (SELECT DISTINCT feed_id \
+                                FROM fields \
+                                WHERE end > %s \
+                                AND start < %s)", (start_str, end_str))
     path_file_list = cur.fetchall()
 
     # Build file list to read data

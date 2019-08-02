@@ -65,9 +65,11 @@ def add_files_to_feeds_table(frame, cur, cnx, r, f):
     # Each file can (and probably will) contain more than one feed
     for (prov_id, description) in feeds:
         # Get ID from the file/feed if it exists.
-        cur.execute("SELECT E.id \
-                     FROM feeds E, file_info I \
-                     WHERE I.filename=%s AND E.prov_id=%s", (f, prov_id))
+        cur.execute("SELECT id \
+                     FROM feeds \
+                     WHERE file_id IN \
+                        (SELECT id from file_info WHERE filename=%s) \
+                     AND prov_id=%s", (f, prov_id))
         _r = cur.fetchall()
 
         if not _r:
@@ -127,7 +129,8 @@ def add_fields_and_times_to_db(frame, cur, r, f):
 
     # Get feed ID from the field/prov_id if it exists.
     cur.execute("SELECT E.id, I.scanned \
-                 FROM feeds E, file_info I \
+                 FROM feeds E \
+                 JOIN file_info I ON I.id = E.file_id \
                  WHERE I.filename=%s AND E.prov_id=%s", (f, prov_id))
     _r = cur.fetchall()
 
