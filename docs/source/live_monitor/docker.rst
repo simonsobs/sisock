@@ -81,9 +81,18 @@ Updating Containers
 If you have made changes to the docker compose configuration you need to update
 your containers by running the up command again::
 
-    $ sudo -E docker-compose -d
+    $ sudo -E docker-compose up -d
 
-This will rebuild any containers that have been updated.
+This will rebuild any containers that have either been updated or depend on one
+which has updated.
+
+To update a single service only you can run::
+
+    $ docker-compose stop <service name>
+    $ docker-compose up <service name>
+
+Where you need to replace ``<service name>`` with the name of the service you
+have configured in your docker-compose configuration file.
 
 Restarting Containers
 `````````````````````
