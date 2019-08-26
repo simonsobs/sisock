@@ -312,7 +312,7 @@ def build_description_table(config):
 
     for field_name, description in fields:
         # Create our timeline names based on the feed
-        _field_name = (field_name).lower().replace(' ', '_')
+        _field_name = field_name
 
         # Actually using for both timeline and field names, as each field
         # is timestamped independently anyway, and _field_name is not

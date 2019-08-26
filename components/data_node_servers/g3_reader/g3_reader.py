@@ -28,7 +28,7 @@ import so3g
 import sisock
 from spt3g import core
 from spt3g.core import G3FrameType
-
+from so3g.hk import HKArchiveScanner
 
 def _build_file_list(cur, start, end):
     """Build the file list to read in all the data within a given start/end
@@ -76,6 +76,35 @@ def _build_file_list(cur, start, end):
         file_list.append(os.path.join(path, _file))
 
     return file_list
+
+
+def _read_data_from_disk_w_hkscanner(data_cache, file_list):
+    """Read data from disk using the so3g HKArchiveScanner. Should be used
+    instead of _read_data_from_disk, which handles the g3 directly. Meant to be
+    called by blockingCallFromThread.
+
+    Parameters
+    ----------
+    data_cache : dict
+        data_cache dictionary with same format returned by
+        this function, allows for checking already loaded
+        data.
+    file_list : list
+        list of files
+
+    Returns
+    -------
+    so3g.hk.HKArchive
+        HKArchive object, which has get_fields and get_data methods identical
+        to sisock. Can be used directly to retrieve data.
+
+    """
+    hkcs = HKArchiveScanner()
+    for filename in file_list:
+        hkcs.process_file(filename)
+    archive = hkcs.finalize()
+
+    return archive
 
 
 def _read_data_from_disk(data_cache, file_list):
@@ -185,7 +214,7 @@ def _read_data_to_cache(frame, cache, prov_map):
         for channel in block.data.keys():
             # Create a feed dependent timeline_name just like in get_fields().
             _timeline_name = "{feed}.{field}".format(feed=prov_map[frame['prov_id']],
-                                                     field=channel.lower().replace(' ', '_'))
+                                                     field=channel)
 
             # Add channel key if it doesn't exist.
             if _timeline_name not in cache['Timestamps']:
@@ -390,19 +419,55 @@ class G3ReaderServer(sisock.base.DataNodeServer):
         print("Building file list for range {} to {}".format(start, end))
         #print("Built file list: {}".format(file_list)) # debug
 
-        print('Reading data from disk from {start} to {end}.'.format(start=start, end=end))
-        self.data_cache = _read_data_from_disk(self.data_cache, file_list)
-        print("data_cache contains data from:", self.data_cache.keys())
-
-        #print("data_cache contains:", self.data_cache) # debug
-
-        _formatting = _format_data_cache_for_sisock(self.data_cache, start,
-                                                    end, max_points=self.max_points)
-        #print("Formatted data:", _formatting) # debug
-
         # Close DB connection
         cur.close()
         cnx.close()
+
+        print('Reading data from disk from {start} to {end}.'.format(start=start, end=end))
+        #self.data_cache = _read_data_from_disk(self.data_cache, file_list)
+        self.data_cache = _read_data_from_disk_w_hkscanner(self.data_cache, file_list)
+        print(file_list)
+        #print("data_cache contains data from:", self.data_cache.keys())
+
+        #print("data_cache contains:", self.data_cache) # debug
+
+        print("Getting data for field:", field)
+        print(field, start, end, min_stride)
+        #_formatting = self.data_cache.simple('LSA22YE.Channel 03 R', start, end, min_stride, short_match=True)
+        #_formatting = self.data_cache.get_data(['observatory.LSA22YE.feeds.temperatures.Channel 06 R'], start, end, min_stride, short_match=True)
+        _data, _timeline = self.data_cache.get_data(field, start, end, min_stride, short_match=True)
+
+        # cast data and timelines as lists for WAMP serialization
+        _new_data = {}
+        for k, v in _data.items():
+            _new_data[k] = list(v)
+
+        _new_timeline = {}
+        for k, v in _timeline.items():
+            new_v = {}
+            for k2, v2 in v.items():
+                if k2 == 't':
+                    new_v[k2] = list(v2)
+                else:
+                    new_v[k2] = v2
+            _new_timeline[k] = new_v
+
+        _formatting = {"data": _new_data, "timeline": _new_timeline}
+        print(_formatting['data'].keys())
+        print(_formatting['timeline'].keys())
+        #print(_formatting[1]['group0'])
+
+        #t = time.time()
+        #_formatting = _format_data_cache_for_sisock(self.data_cache, start,
+        #                                            end, max_points=self.max_points)
+        #t_ellapsed = time.time() - t
+        #print("Formatted data in: {} seconds".format(t_ellapsed))
+        #print("Formatted data:", _formatting) # debug
+
+        #total_time_data = time.time() - t_data
+        #print("Time to get data:", total_time_data)
+
+        print('type', type(_formatting))
 
         return _formatting
 
