@@ -243,7 +243,7 @@ class GrafanaSisockDatasrc(object):
             # Identifies HKArchiveScanner API in use by generic 'group0' used
             # in its output. This is kind of a hack.
             if 'group0' in data['timeline']:
-                print("Detected results from HKArchiveScanner use")
+                self.log.debug("Detected results from HKArchiveScanner use")
                 _timelines = data['timeline']
                 _data = data['data']
                 self.log.debug(f'Querying for data in fields: {field}')
@@ -379,7 +379,7 @@ def main(reactor):
     comp_d = component.start(reactor)
 
     # When not using run() we also must start logging ourselves.
-    txaio.start_logging(level='info')
+    txaio.start_logging(level=environ.get("LOGLEVEL", "info"))
 
     # If the Component raises an exception we want to exit. Note that
     # things like failing to connect will be swallowed by the
