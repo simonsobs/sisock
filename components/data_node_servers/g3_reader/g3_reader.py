@@ -18,6 +18,7 @@ from datetime import datetime
 import numpy as np
 import six
 import mysql.connector
+import txaio
 from autobahn.wamp.types import ComponentConfig
 from autobahn.twisted.wamp import ApplicationSession, ApplicationRunner
 from twisted.internet._sslverify import OpenSSLCertificateAuthorities
@@ -29,6 +30,9 @@ import sisock
 from spt3g import core
 from spt3g.core import G3FrameType
 from so3g.hk import HKArchiveScanner
+
+# For logging
+txaio.use_twisted()
 
 def _build_file_list(cur, start, end):
     """Build the file list to read in all the data within a given start/end
@@ -74,6 +78,10 @@ def _build_file_list(cur, start, end):
 
     for path, _file in path_file_list:
         file_list.append(os.path.join(path, _file))
+
+    # Remove duplicates
+    file_list = list(set(file_list))
+    file_list.sort()
 
     return file_list
 
@@ -326,6 +334,42 @@ def _format_sisock_time_for_sql(sisock_time):
     return sql_str
 
 
+def _cast_data_timeline_to_list(data, timeline):
+    """Cast data and timelines as lists for WAMP serialization.
+
+    The so3g HKArchiveScanner returns data as either native g3 types or numpy
+    arrays. We need them to be lists in order for WAMP to accept them.
+
+    Parameters
+    ----------
+    data : dict
+        Data dictionary returned by so3g HKArchiveScanner's get_data() method
+    timeline : dict
+        Timeline dictionary returned by so3g HKArchiveScanner's get_data()
+        method
+
+    Returns
+    -------
+    dict, dict
+        data and timeline dictionaries with data and 't' fields cast as lists
+
+    """
+    _new_data = {}
+    for k, v in data.items():
+        _new_data[k] = list(v)
+
+    _new_timeline = {}
+    for k, v in timeline.items():
+        new_v = {}
+        for k2, v2 in v.items():
+            if k2 == 't':
+                new_v[k2] = list(v2)
+            else:
+                new_v[k2] = v2
+        _new_timeline[k] = new_v
+
+    return _new_data, _new_timeline
+
 class G3ReaderServer(sisock.base.DataNodeServer):
     """A DataNodeServer serving housekeeping data stored in .g3 format on disk."""
     def __init__(self, config, sql_config):
@@ -341,7 +385,11 @@ class G3ReaderServer(sisock.base.DataNodeServer):
         # For SQL connections within blocking methods
         self.sql_config = sql_config
 
+        # Data cache for opening g3 files
         self.data_cache = {}
+
+        # Logging
+        self.log = txaio.make_logger()
 
     def _get_fields_blocking(self, start, end):
         """Over-riding the parent class prototype: see the parent class for the
@@ -404,58 +452,41 @@ class G3ReaderServer(sisock.base.DataNodeServer):
         API.
 
         """
+        # Benchmarking
+        t_data = time.time()
+
         # Establish DB connection
         cnx = mysql.connector.connect(host=self.sql_config['host'],
                                       user=self.sql_config['user'],
                                       passwd=self.sql_config['passwd'],
                                       db=self.sql_config['db'])
         cur = cnx.cursor()
-        print("SQL server connection established")
+        self.log.debug("SQL server connection established")
 
+        # Format start and end times
         start = sisock.base.sisock_to_unix_time(start)
         end = sisock.base.sisock_to_unix_time(end)
 
+        # Build the list of files to open
         file_list = _build_file_list(cur, start, end)
-        print("Building file list for range {} to {}".format(start, end))
-        #print("Built file list: {}".format(file_list)) # debug
+        self.log.debug("Built file list: {}".format(file_list))
 
         # Close DB connection
         cur.close()
         cnx.close()
 
-        print('Reading data from disk from {start} to {end}.'.format(start=start, end=end))
+        # Use HKArchiveScanner to read data from disk
+        self.log.debug('Reading data from disk from {start} to {end}'.format(start=start, end=end))
         #self.data_cache = _read_data_from_disk(self.data_cache, file_list)
         self.data_cache = _read_data_from_disk_w_hkscanner(self.data_cache, file_list)
-        print(file_list)
-        #print("data_cache contains data from:", self.data_cache.keys())
 
-        #print("data_cache contains:", self.data_cache) # debug
-
-        print("Getting data for field:", field)
-        print(field, start, end, min_stride)
-        #_formatting = self.data_cache.simple('LSA22YE.Channel 03 R', start, end, min_stride, short_match=True)
-        #_formatting = self.data_cache.get_data(['observatory.LSA22YE.feeds.temperatures.Channel 06 R'], start, end, min_stride, short_match=True)
+        self.log.info("Getting data for fields:", field)
         _data, _timeline = self.data_cache.get_data(field, start, end, min_stride, short_match=True)
 
-        # cast data and timelines as lists for WAMP serialization
-        _new_data = {}
-        for k, v in _data.items():
-            _new_data[k] = list(v)
-
-        _new_timeline = {}
-        for k, v in _timeline.items():
-            new_v = {}
-            for k2, v2 in v.items():
-                if k2 == 't':
-                    new_v[k2] = list(v2)
-                else:
-                    new_v[k2] = v2
-            _new_timeline[k] = new_v
+        # Cast as lists
+        _new_data, _new_timeline = _cast_data_timeline_to_list(_data, _timeline)
 
         _formatting = {"data": _new_data, "timeline": _new_timeline}
-        print(_formatting['data'].keys())
-        print(_formatting['timeline'].keys())
-        #print(_formatting[1]['group0'])
 
         #t = time.time()
         #_formatting = _format_data_cache_for_sisock(self.data_cache, start,
@@ -464,10 +495,8 @@ class G3ReaderServer(sisock.base.DataNodeServer):
         #print("Formatted data in: {} seconds".format(t_ellapsed))
         #print("Formatted data:", _formatting) # debug
 
-        #total_time_data = time.time() - t_data
-        #print("Time to get data:", total_time_data)
-
-        print('type', type(_formatting))
+        total_time_data = time.time() - t_data
+        print("Time to get data:", total_time_data)
 
         return _formatting
 
@@ -475,6 +504,9 @@ class G3ReaderServer(sisock.base.DataNodeServer):
 if __name__ == "__main__":
     # Give time for crossbar server to start
     time.sleep(5)
+
+    # Start logging
+    txaio.start_logging(level=environ.get("LOGLEVEL", "info"))
 
     # Because we're using a self-signed certificate, we need to tell Twisted
     # that it is OK to trust it.
