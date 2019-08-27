@@ -374,27 +374,37 @@ class G3ReaderServer(sisock.base.DataNodeServer):
         #print(_formatting['data'].keys())
         #print(_formatting['timeline'].keys())
 
-        #group_map = {}
-        #for group, v in _formatting['timeline'].items():
-        #    for _field in v['fields']:
-        #        group_map[_field] = group
-        #self.log.debug('group_map: {}'.format(group_map))
+        group_map = {}
+        for group, v in _formatting['timeline'].items():
+            for _field in v['fields']:
+                group_map[_field] = group
+        self.log.debug('group_map: {}'.format(group_map))
 
-        ## Naive downsampling
-        #max_points = 1000
-        #if max_points != 0:
-        #    for field in _formatting['data']:
-        #        if max_points < len(_formatting['data'][field]):
-        #            limiter = range(0, len(_formatting['data'][field]),
-        #                            int(len(_formatting['data'][field])/max_points))
-        #            _formatting['data'][field] = np.array(_formatting['data'][field])[limiter].tolist()
-        #            _formatting['timeline'][group_map[field]]['t'] = np.array(_formatting['timeline'][group_map[field]]['t'])[limiter].tolist()
-        #            _formatting['timeline'][group_map[field]]['finalized_until'] = _formatting['timeline'][group_map[field]]['t'][-1]
+        # Naive downsampling - make function which takes final dictionary we
+        # want to return, down samples it, and returns something we can spit
+        # out of get_data
+        max_points = self.max_points
+        _new_result = {'data': {}, 'timeline': {}}
+        for field, data_array in _formatting['data'].items():
+            if max_points < len(data_array):
+                step = int(len(data_array)/max_points)
+                _new_result['data'][field] = np.array(data_array)[::step].tolist()
+            else:
+                _new_result['data'][field] = data_array
+
+        for group, timeline_dict in _formatting['timeline'].items():
+            if max_points < len(timeline_dict['t']):
+                step = int(len(timeline_dict['t'])/max_points)
+                _new_result['timeline'][group] = {'t': np.array(timeline_dict['t'])[::step].tolist()}
+                _new_result['timeline'][group]['fields'] = timeline_dict['fields']
+                _new_result['timeline'][group]['finalized_until'] = np.array(timeline_dict['t'])[::step][-1]
+            else:
+                _new_result['timeline'][group] = timeline_dict
 
         total_time_data = time.time() - t_data
         print("Time to get data:", total_time_data)
 
-        return _formatting
+        return _new_result
 
 
 if __name__ == "__main__":
