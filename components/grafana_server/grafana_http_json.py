@@ -256,13 +256,20 @@ class GrafanaSisockDatasrc(object):
                 for group, v in _timelines.items():
                     for _field in v['fields']:
                         group_map[_field] = group
-                self.log.debug(f'group_map: {group_map}')
+                self.log.debug('group_map: {g}', g=group_map)
 
                 for f in field:
-                    tl_name = group_map[f]
-                    tl = np.array(_timelines[tl_name]["t"]) * 1000.0
-                    d = {"target": data_node + "::" + f,
-                         "datapoints": list(zip(_data[f], tl))}
+                    self.log.debug("Processing field {_f}", _f=f)
+                    if f in group_map:
+                        tl_name = group_map[f]
+                        tl = np.array(_timelines[tl_name]["t"]) * 1000.0
+                        d = {"target": data_node + "::" + f,
+                             "datapoints": list(zip(_data[f], tl))}
+                    else:
+                        self.log.debug('field {_f} not found in group_map,' +
+                                       'returning empty list', _f=f)
+                        # Results in name showing up in key, but no data points
+                        d = {"target": data_node + "::" + f, "datapoints": []}
                     res.append(d)
             else:
                 # Loop through the fields and convert to something that we can
