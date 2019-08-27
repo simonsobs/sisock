@@ -108,7 +108,13 @@ def _read_data_from_disk(data_cache, file_list):
     """
     hkcs = HKArchiveScanner()
     for filename in file_list:
-        hkcs.process_file(filename)
+        try:
+            hkcs.process_file(filename)
+        except RuntimeError:
+            self.log.warn("Exception raised while reading file {_f}," +
+                          "likely the file is not yet done writing",
+                          _f=filename)
+
     archive = hkcs.finalize()
 
     return archive
