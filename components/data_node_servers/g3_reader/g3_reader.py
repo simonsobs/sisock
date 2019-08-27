@@ -86,10 +86,9 @@ def _build_file_list(cur, start, end):
     return file_list
 
 
-def _read_data_from_disk_w_hkscanner(data_cache, file_list):
-    """Read data from disk using the so3g HKArchiveScanner. Should be used
-    instead of _read_data_from_disk, which handles the g3 directly. Meant to be
-    called by blockingCallFromThread.
+def _read_data_from_disk(data_cache, file_list):
+    """Read data from disk using the so3g HKArchiveScanner.  Meant to be called
+    by blockingCallFromThread.
 
     Parameters
     ----------
@@ -114,127 +113,6 @@ def _read_data_from_disk_w_hkscanner(data_cache, file_list):
 
     return archive
 
-
-def _read_data_from_disk(data_cache, file_list):
-    """Read data from disk. Meant to be called by blockingCallFromThread.
-
-    Parameters
-    ----------
-    data_cache : dict
-        data_cache dictionary with same format returned by
-        this function, allows for checking already loaded
-        data.
-    file_list : list
-        list of tuples with (file, year)
-
-    Returns
-    -------
-    dict
-        full file paths as keys, a dictionary as the value containing
-        timestamps and tods. Requires further formatting before returning
-        from sisock
-
-    """
-    for _file in file_list:
-        # Only load data if not already in the cache
-        if _file not in data_cache:
-            file_cache = _load_g3_file(_file)
-            if file_cache is not None:
-                data_cache[_file] = _load_g3_file(_file)
-
-    return data_cache
-
-def _load_g3_file(_f):
-    """Read in a g3 file.
-
-    Parameters
-    ----------
-    _f (string) : file name to load (full path)
-
-    Returns
-    -------
-    result (dict) : two keys, 'Timestamps' and 'TODs', each with a dictionary as
-                    their values, the dictionary structure is dictated by that
-                    stored in the .g3 file.
-
-    """
-
-    # Dependent on the actual .g3 internal format. Will also need updating when
-    # so3g format finalized.
-    cache_data = {'Timestamps': {},
-                  'TODs': {}}
-
-    prov_id_map = {}
-
-    try:
-        p = core.G3Pipeline()
-        print("Adding {} to G3Reader".format(_f))
-        p.Add(core.G3Reader, filename="{}".format(_f))
-        p.Add(_read_data_to_cache, cache=cache_data, prov_map=prov_id_map)
-        p.Run()
-    except RuntimeError:
-        print("Could not open {}".format(_f))
-        cache_data = None
-
-    # very much a debug statement, do not leave on in production (we really
-    # need a better logging system...)
-    #print("loaded data from file", cache_data)
-    return cache_data
-
-def _read_data_to_cache(frame, cache, prov_map):
-    """A G3Pipeline Module for caching the current format of .g3 files for
-    thermometry. Will need to be updated/replaced when general so3g format
-    finalized.
-
-    Parameters
-    ----------
-    frame : G3Frame
-        the frame passed in a G3Pipeline
-    cache : dict
-        Cache of the data. Establish structure outside of this function, since
-        we aren't really returning anything from the Pipeline. Allows
-        extraction of data from G3Pipeline.
-    prov_map : dict
-        Map of provider ids and descriptions for creating timeline names from
-        descriptions. Cached outside of pipeline.
-
-    """
-    # Make sure we're on an HKData frame.
-    if frame.type == G3FrameType.Housekeeping:
-        if frame['hkagg_type'] == 1:
-            # Populate provider map.
-            for provider in frame['providers']:
-                description = str(provider['description']).strip('"')
-                prov_id = int(str(provider['prov_id']))
-
-                prov_map[prov_id] = description
-
-            return
-
-        if frame['hkagg_type'] == 2:
-            pass
-        else:
-            return
-    else:
-        return
-
-    for block in frame['blocks']:
-        for channel in block.data.keys():
-            # Create a feed dependent timeline_name just like in get_fields().
-            _timeline_name = "{feed}.{field}".format(feed=prov_map[frame['prov_id']],
-                                                     field=channel)
-
-            # Add channel key if it doesn't exist.
-            if _timeline_name not in cache['Timestamps']:
-                #print("Adding channel {} to cache['Timestamps']".format(channel))
-                cache['Timestamps'][_timeline_name] = []
-            if _timeline_name not in cache['TODs']:
-                #print("Adding _timeline_name {} to cache['TODs']".format(_timeline_name))
-                cache['TODs'][_timeline_name] = []
-
-            # Add data from frame to cache
-            cache['Timestamps'][_timeline_name] += list(block.t)
-            cache['TODs'][_timeline_name] += list(block.data[channel])
 
 def _format_data_cache_for_sisock(cache, start, end, max_points=0):
     """Format for return from sisock API.
@@ -477,15 +355,13 @@ class G3ReaderServer(sisock.base.DataNodeServer):
 
         # Use HKArchiveScanner to read data from disk
         self.log.debug('Reading data from disk from {start} to {end}'.format(start=start, end=end))
-        #self.data_cache = _read_data_from_disk(self.data_cache, file_list)
-        self.data_cache = _read_data_from_disk_w_hkscanner(self.data_cache, file_list)
+        self.data_cache = _read_data_from_disk(self.data_cache, file_list)
 
-        self.log.info("Getting data for fields:", field)
+        self.log.info(f"Getting data for fields: {field}")
         _data, _timeline = self.data_cache.get_data(field, start, end, min_stride, short_match=True)
 
         # Cast as lists
         _new_data, _new_timeline = _cast_data_timeline_to_list(_data, _timeline)
-
         _formatting = {"data": _new_data, "timeline": _new_timeline}
 
         #t = time.time()
@@ -494,6 +370,26 @@ class G3ReaderServer(sisock.base.DataNodeServer):
         #t_ellapsed = time.time() - t
         #print("Formatted data in: {} seconds".format(t_ellapsed))
         #print("Formatted data:", _formatting) # debug
+
+        #print(_formatting['data'].keys())
+        #print(_formatting['timeline'].keys())
+
+        #group_map = {}
+        #for group, v in _formatting['timeline'].items():
+        #    for _field in v['fields']:
+        #        group_map[_field] = group
+        #self.log.debug('group_map: {}'.format(group_map))
+
+        ## Naive downsampling
+        #max_points = 1000
+        #if max_points != 0:
+        #    for field in _formatting['data']:
+        #        if max_points < len(_formatting['data'][field]):
+        #            limiter = range(0, len(_formatting['data'][field]),
+        #                            int(len(_formatting['data'][field])/max_points))
+        #            _formatting['data'][field] = np.array(_formatting['data'][field])[limiter].tolist()
+        #            _formatting['timeline'][group_map[field]]['t'] = np.array(_formatting['timeline'][group_map[field]]['t'])[limiter].tolist()
+        #            _formatting['timeline'][group_map[field]]['finalized_until'] = _formatting['timeline'][group_map[field]]['t'][-1]
 
         total_time_data = time.time() - t_data
         print("Time to get data:", total_time_data)
