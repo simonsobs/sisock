@@ -2,8 +2,7 @@
 # A containerized sisock installation.
 
 # Build on so3g base image
-#FROM simonsobs/so3g:v0.0.4-39-g14853f8
-FROM so3g:latest
+FROM simonsobs/so3g:v0.0.4-48-g29344cf
 
 # Set timezone to UTC
 ENV TZ=Etc/UTC
