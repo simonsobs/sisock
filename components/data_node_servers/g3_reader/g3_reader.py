@@ -25,8 +25,8 @@ from twisted.internet._sslverify import OpenSSLCertificateAuthorities
 from twisted.internet.ssl import CertificateOptions
 from OpenSSL import crypto
 
-import sisock
 from so3g.hk import HKArchiveScanner
+import sisock
 
 # For logging
 txaio.use_twisted()
@@ -82,40 +82,6 @@ def _build_file_list(cur, start, end):
     file_list.sort()
 
     return file_list
-
-
-def _read_data_from_disk(data_cache, file_list):
-    """Read data from disk using the so3g HKArchiveScanner.  Meant to be called
-    by blockingCallFromThread.
-
-    Parameters
-    ----------
-    data_cache : dict
-        data_cache dictionary with same format returned by
-        this function, allows for checking already loaded
-        data.
-    file_list : list
-        list of files
-
-    Returns
-    -------
-    so3g.hk.HKArchive
-        HKArchive object, which has get_fields and get_data methods identical
-        to sisock. Can be used directly to retrieve data.
-
-    """
-    hkcs = HKArchiveScanner()
-    for filename in file_list:
-        try:
-            hkcs.process_file(filename)
-        except RuntimeError:
-            print("Exception raised while reading file {_f}," +
-                  "likely the file is not yet done writing",
-                  _f=filename)
-
-    archive = hkcs.finalize()
-
-    return archive
 
 
 def _format_sisock_time_for_sql(sisock_time):
@@ -240,10 +206,46 @@ class G3ReaderServer(sisock.base.DataNodeServer):
         self.sql_config = sql_config
 
         # Data cache for opening g3 files
-        self.data_cache = {}
+        self.cache_list = []
+        self.hkas = HKArchiveScanner()
+        self.archive = None
 
         # Logging
         self.log = txaio.make_logger()
+
+
+    def _scan_data_from_disk(self, file_list):
+        """Scan data from disk using the so3g HKArchiveScanner. Meant to be called
+        by blockingCallFromThread.
+
+        Parameters
+        ----------
+        file_list : list
+            list of files to scan with the ArchiveScanner
+
+        Returns
+        -------
+        so3g.hk.HKArchive
+            HKArchive object, which has get_fields and get_data methods identical
+            to sisock. Can be used directly to retrieve data.
+
+        """
+        for filename in file_list:
+            if filename not in self.cache_list:
+                try:
+                    self.hkas.process_file(filename)
+                    self.cache_list.append(filename)
+                except RuntimeError:
+                    self.log.debug("Exception raised while reading file {f}," +
+                                   "likely the file is not yet done writing",
+                                   f=filename)
+            else:
+                self.log.debug("{f} already in cache list, skipping", f=filename)
+
+        self.archive = self.hkas.finalize()
+
+        return self.archive
+
 
     def _get_fields_blocking(self, start, end):
         """Over-riding the parent class prototype: see the parent class for the
@@ -331,10 +333,10 @@ class G3ReaderServer(sisock.base.DataNodeServer):
 
         # Use HKArchiveScanner to read data from disk
         self.log.debug('Reading data from disk from {start} to {end}'.format(start=start, end=end))
-        self.data_cache = _read_data_from_disk(self.data_cache, file_list)
+        self._scan_data_from_disk(file_list)
 
         self.log.info(f"Getting data for fields: {field}")
-        _data, _timeline = self.data_cache.get_data(field, start, end, min_stride, short_match=True)
+        _data, _timeline = self.archive.get_data(field, start, end, min_stride, short_match=True)
 
         # Cast as lists
         _new_data, _new_timeline = _cast_data_timeline_to_list(_data, _timeline)
