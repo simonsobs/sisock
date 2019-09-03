@@ -283,15 +283,14 @@ class GrafanaSisockDatasrc(object):
                     try:
                         tl_name = self._field[data_node][0][f]["timeline"]
                         tl = np.array(data["timeline"][tl_name]["t"]) * 1000.0
-                    except Exception as e:
-                        print("%s occurred with field '%s', skipping..." %
-                              (type(e), f))
-                        print("error:", e.message)
-                        continue
-
-                    # Now build the response for this field.
-                    d = {"target": data_node + "::" + f,
-                         "datapoints": list(zip(data["data"][f], tl))}
+                        # Now build the response for this field.
+                        d = {"target": data_node + "::" + f,
+                             "datapoints": list(zip(data["data"][f], tl))}
+                    except KeyError:
+                        self.log.debug('field {_f} not found,' +
+                                       'returning empty list', _f=f)
+                        # Results in name showing up in key, but no data points
+                        d = {"target": data_node + "::" + f, "datapoints": []}
                     res.append(d)
 
         # Convert to JSON and send off to grafana.
