@@ -18,16 +18,18 @@ from datetime import datetime
 import numpy as np
 import six
 import mysql.connector
+import txaio
 from autobahn.wamp.types import ComponentConfig
 from autobahn.twisted.wamp import ApplicationSession, ApplicationRunner
 from twisted.internet._sslverify import OpenSSLCertificateAuthorities
 from twisted.internet.ssl import CertificateOptions
 from OpenSSL import crypto
 
-import so3g
+from so3g.hk import HKArchiveScanner
 import sisock
-from spt3g import core
-from spt3g.core import G3FrameType
+
+# For logging
+txaio.use_twisted()
 
 
 def _build_file_list(cur, start, end):
@@ -75,198 +77,11 @@ def _build_file_list(cur, start, end):
     for path, _file in path_file_list:
         file_list.append(os.path.join(path, _file))
 
+    # Remove duplicates
+    file_list = list(set(file_list))
+    file_list.sort()
+
     return file_list
-
-
-def _read_data_from_disk(data_cache, file_list):
-    """Read data from disk. Meant to be called by blockingCallFromThread.
-
-    Parameters
-    ----------
-    data_cache : dict
-        data_cache dictionary with same format returned by
-        this function, allows for checking already loaded
-        data.
-    file_list : list
-        list of tuples with (file, year)
-
-    Returns
-    -------
-    dict
-        full file paths as keys, a dictionary as the value containing
-        timestamps and tods. Requires further formatting before returning
-        from sisock
-
-    """
-    for _file in file_list:
-        # Only load data if not already in the cache
-        if _file not in data_cache:
-            file_cache = _load_g3_file(_file)
-            if file_cache is not None:
-                data_cache[_file] = _load_g3_file(_file)
-
-    return data_cache
-
-def _load_g3_file(_f):
-    """Read in a g3 file.
-
-    Parameters
-    ----------
-    _f (string) : file name to load (full path)
-
-    Returns
-    -------
-    result (dict) : two keys, 'Timestamps' and 'TODs', each with a dictionary as
-                    their values, the dictionary structure is dictated by that
-                    stored in the .g3 file.
-
-    """
-
-    # Dependent on the actual .g3 internal format. Will also need updating when
-    # so3g format finalized.
-    cache_data = {'Timestamps': {},
-                  'TODs': {}}
-
-    prov_id_map = {}
-
-    try:
-        p = core.G3Pipeline()
-        print("Adding {} to G3Reader".format(_f))
-        p.Add(core.G3Reader, filename="{}".format(_f))
-        p.Add(_read_data_to_cache, cache=cache_data, prov_map=prov_id_map)
-        p.Run()
-    except RuntimeError:
-        print("Could not open {}".format(_f))
-        cache_data = None
-
-    # very much a debug statement, do not leave on in production (we really
-    # need a better logging system...)
-    #print("loaded data from file", cache_data)
-    return cache_data
-
-def _read_data_to_cache(frame, cache, prov_map):
-    """A G3Pipeline Module for caching the current format of .g3 files for
-    thermometry. Will need to be updated/replaced when general so3g format
-    finalized.
-
-    Parameters
-    ----------
-    frame : G3Frame
-        the frame passed in a G3Pipeline
-    cache : dict
-        Cache of the data. Establish structure outside of this function, since
-        we aren't really returning anything from the Pipeline. Allows
-        extraction of data from G3Pipeline.
-    prov_map : dict
-        Map of provider ids and descriptions for creating timeline names from
-        descriptions. Cached outside of pipeline.
-
-    """
-    # Make sure we're on an HKData frame.
-    if frame.type == G3FrameType.Housekeeping:
-        if frame['hkagg_type'] == 1:
-            # Populate provider map.
-            for provider in frame['providers']:
-                description = str(provider['description']).strip('"')
-                prov_id = int(str(provider['prov_id']))
-
-                prov_map[prov_id] = description
-
-            return
-
-        if frame['hkagg_type'] == 2:
-            pass
-        else:
-            return
-    else:
-        return
-
-    for block in frame['blocks']:
-        for channel in block.data.keys():
-            # Create a feed dependent timeline_name just like in get_fields().
-            _timeline_name = "{feed}.{field}".format(feed=prov_map[frame['prov_id']],
-                                                     field=channel.lower().replace(' ', '_'))
-
-            # Add channel key if it doesn't exist.
-            if _timeline_name not in cache['Timestamps']:
-                #print("Adding channel {} to cache['Timestamps']".format(channel))
-                cache['Timestamps'][_timeline_name] = []
-            if _timeline_name not in cache['TODs']:
-                #print("Adding _timeline_name {} to cache['TODs']".format(_timeline_name))
-                cache['TODs'][_timeline_name] = []
-
-            # Add data from frame to cache
-            cache['Timestamps'][_timeline_name] += list(block.t)
-            cache['TODs'][_timeline_name] += list(block.data[channel])
-
-def _format_data_cache_for_sisock(cache, start, end, max_points=0):
-    """Format for return from sisock API.
-
-    Parameters
-    ----------
-    cache : dict
-        Cache of the data read from disk.
-    start : float
-        Starting unix timestamp, before which we won't return data
-    end : float
-        Ending unix timestamp, after which we won't return data
-    max_points : int
-        Maximum number of points to return, 0 returns all points.
-
-    Returns
-    -------
-    dict
-        dictionary structured for return from the sisock API
-
-    """
-
-    _data = {'data': {},
-             'timeline': {}}
-
-    # Needs to be sorted so that data is displayed properly in grafana
-    filenames = list(cache.keys())
-    filenames.sort()
-
-    for filename in filenames:
-        contents = cache[filename]
-        for field, data in contents['Timestamps'].items():
-            # Add timelines to _data['timeline']
-            if field not in _data['timeline']:
-                _data['timeline'][field] = {'t': [], 'finalized_until': None}
-
-            full_t = np.array(data)
-            t_idx = np.logical_and(full_t > start, full_t < end)
-            t_cut = full_t[t_idx]
-            _data['timeline'][field]['t'] += t_cut.tolist()
-
-            # Add data to _data['data']
-            if field not in _data['data']:
-                _data['data'][field] = []
-
-            #print("T_IDX", t_idx)
-            #print("LOOK", contents['TODs'][field])
-            _data['data'][field] += np.array(contents['TODs'][field])[t_idx].tolist()
-
-    # Determine 'finalized_until' time for each timeline
-    for field in _data['timeline']:
-        try:
-            _data['timeline'][field]['finalized_until'] = np.max(_data['timeline'][field]['t'])
-        except Exception as e:
-            _data['timeline'][field]['finalized_until'] = None
-            print("%s occured on field '%s', unable to determine 'finalized_until' time, \
-                  setting to None..." % (type(e), field))
-
-    # Limit maximum number of points to return.
-    if max_points != 0:
-        for field in _data['data']:
-            if max_points < len(_data['data'][field]):
-                limiter = range(0, len(_data['data'][field]),
-                                int(len(_data['data'][field])/max_points))
-                _data['data'][field] = np.array(_data['data'][field])[limiter].tolist()
-                _data['timeline'][field]['t'] = np.array(_data['timeline'][field]['t'])[limiter].tolist()
-                _data['timeline'][field]['finalized_until'] = _data['timeline'][field]['t'][-1]
-
-    return _data
 
 
 def _format_sisock_time_for_sql(sisock_time):
@@ -297,6 +112,84 @@ def _format_sisock_time_for_sql(sisock_time):
     return sql_str
 
 
+def _cast_data_timeline_to_list(data, timeline):
+    """Cast data and timelines as lists for WAMP serialization.
+
+    The so3g HKArchiveScanner returns data as either native g3 types or numpy
+    arrays. We need them to be lists in order for WAMP to accept them.
+
+    Parameters
+    ----------
+    data : dict
+        Data dictionary returned by so3g HKArchiveScanner's get_data() method
+    timeline : dict
+        Timeline dictionary returned by so3g HKArchiveScanner's get_data()
+        method
+
+    Returns
+    -------
+    dict, dict
+        data and timeline dictionaries with data and 't' fields cast as lists
+
+    """
+    _new_data = {}
+    for k, v in data.items():
+        _new_data[k] = list(v)
+
+    _new_timeline = {}
+    for k, v in timeline.items():
+        new_v = {}
+        for k2, v2 in v.items():
+            if k2 == 't':
+                new_v[k2] = list(v2)
+            else:
+                new_v[k2] = v2
+        _new_timeline[k] = new_v
+
+    return _new_data, _new_timeline
+
+
+def _down_sample_data(get_data_dict, max_points):
+    """Simple downsampling via numpy slicing.
+
+    Slices data using a step size determined by len(array)/max_points. Will not
+    capture details like single sample spikes, etc, but should allow us to use
+    the g3-reader for larget datasets until better downsampling to file is
+    implemented.
+
+    Parameters
+    ----------
+    get_data_dict : dict
+        Dictionary that we've built for get_data, fully sampled
+    max_points : int
+        The maximum number of points per field to return (roughly anyway)
+
+    Returns
+    -------
+    dict
+        A dictionary with the same layout as get_data_dict, just downsampled
+
+    """
+    new_get_data_array = {'data': {}, 'timeline': {}}
+    for field, data_array in get_data_dict['data'].items():
+        if max_points < len(data_array):
+            step = int(len(data_array)/max_points)
+            new_get_data_array['data'][field] = np.array(data_array)[::step].tolist()
+        else:
+            new_get_data_array['data'][field] = data_array
+
+    for group, timeline_dict in get_data_dict['timeline'].items():
+        if max_points < len(timeline_dict['t']):
+            step = int(len(timeline_dict['t'])/max_points)
+            new_get_data_array['timeline'][group] = {'t': np.array(timeline_dict['t'])[::step].tolist()}
+            new_get_data_array['timeline'][group]['fields'] = timeline_dict['fields']
+            new_get_data_array['timeline'][group]['finalized_until'] = np.array(timeline_dict['t'])[::step][-1]
+        else:
+            new_get_data_array['timeline'][group] = timeline_dict
+
+    return new_get_data_array
+
+
 class G3ReaderServer(sisock.base.DataNodeServer):
     """A DataNodeServer serving housekeeping data stored in .g3 format on disk."""
     def __init__(self, config, sql_config):
@@ -312,7 +205,47 @@ class G3ReaderServer(sisock.base.DataNodeServer):
         # For SQL connections within blocking methods
         self.sql_config = sql_config
 
-        self.data_cache = {}
+        # Data cache for opening g3 files
+        self.cache_list = []
+        self.hkas = HKArchiveScanner()
+        self.archive = None
+
+        # Logging
+        self.log = txaio.make_logger()
+
+
+    def _scan_data_from_disk(self, file_list):
+        """Scan data from disk using the so3g HKArchiveScanner. Meant to be called
+        by blockingCallFromThread.
+
+        Parameters
+        ----------
+        file_list : list
+            list of files to scan with the ArchiveScanner
+
+        Returns
+        -------
+        so3g.hk.HKArchive
+            HKArchive object, which has get_fields and get_data methods identical
+            to sisock. Can be used directly to retrieve data.
+
+        """
+        for filename in file_list:
+            if filename not in self.cache_list:
+                try:
+                    self.hkas.process_file(filename)
+                    self.cache_list.append(filename)
+                except RuntimeError:
+                    self.log.debug("Exception raised while reading file {f}," +
+                                   "likely the file is not yet done writing",
+                                   f=filename)
+            else:
+                self.log.debug("{f} already in cache list, skipping", f=filename)
+
+        self.archive = self.hkas.finalize()
+
+        return self.archive
+
 
     def _get_fields_blocking(self, start, end):
         """Over-riding the parent class prototype: see the parent class for the
@@ -375,41 +308,58 @@ class G3ReaderServer(sisock.base.DataNodeServer):
         API.
 
         """
+        # Benchmarking
+        t_data = time.time()
+
         # Establish DB connection
         cnx = mysql.connector.connect(host=self.sql_config['host'],
                                       user=self.sql_config['user'],
                                       passwd=self.sql_config['passwd'],
                                       db=self.sql_config['db'])
         cur = cnx.cursor()
-        print("SQL server connection established")
+        self.log.debug("SQL server connection established")
 
+        # Format start and end times
         start = sisock.base.sisock_to_unix_time(start)
         end = sisock.base.sisock_to_unix_time(end)
 
+        # Build the list of files to open
         file_list = _build_file_list(cur, start, end)
-        print("Building file list for range {} to {}".format(start, end))
-        #print("Built file list: {}".format(file_list)) # debug
-
-        print('Reading data from disk from {start} to {end}.'.format(start=start, end=end))
-        self.data_cache = _read_data_from_disk(self.data_cache, file_list)
-        print("data_cache contains data from:", self.data_cache.keys())
-
-        #print("data_cache contains:", self.data_cache) # debug
-
-        _formatting = _format_data_cache_for_sisock(self.data_cache, start,
-                                                    end, max_points=self.max_points)
-        #print("Formatted data:", _formatting) # debug
+        self.log.debug("Built file list: {}".format(file_list))
 
         # Close DB connection
         cur.close()
         cnx.close()
 
-        return _formatting
+        # Use HKArchiveScanner to read data from disk
+        self.log.debug('Reading data from disk from {start} to {end}'.format(start=start, end=end))
+        self._scan_data_from_disk(file_list)
+
+        self.log.info(f"Getting data for fields: {field}")
+        _data, _timeline = self.archive.get_data(field, start, end, min_stride, short_match=True)
+
+        # Cast as lists
+        _new_data, _new_timeline = _cast_data_timeline_to_list(_data, _timeline)
+        _formatting = {"data": _new_data, "timeline": _new_timeline}
+
+        # Downsample the data
+        t = time.time()
+        result = _down_sample_data(_formatting, self.max_points)
+        t_ellapsed = time.time() - t
+        self.log.debug("Downsampled data in: {time} seconds", time=t_ellapsed)
+
+        total_time_data = time.time() - t_data
+        self.log.debug("Time to get data: {time}", time=total_time_data)
+
+        return result
 
 
 if __name__ == "__main__":
     # Give time for crossbar server to start
     time.sleep(5)
+
+    # Start logging
+    txaio.start_logging(level=environ.get("LOGLEVEL", "info"))
 
     # Because we're using a self-signed certificate, we need to tell Twisted
     # that it is OK to trust it.
@@ -437,8 +387,8 @@ if __name__ == "__main__":
                   'db': environ['SQL_DB']}
 
     # Start our component.
-    runner = ApplicationRunner("wss://%s:%d/ws" % (sisock.base.SISOCK_HOST, \
-                                                   sisock.base.SISOCK_PORT), \
+    runner = ApplicationRunner("wss://%s:%d/ws" % (sisock.base.SISOCK_HOST,
+                                                   sisock.base.SISOCK_PORT),
                                sisock.base.REALM, ssl=opt)
     runner.run(G3ReaderServer(ComponentConfig(sisock.base.REALM, {}),
                               sql_config=SQL_CONFIG))

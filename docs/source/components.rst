@@ -63,7 +63,9 @@ The image is provided at ``grumpy.physics.yale.edu/sisock-http``, and depends
 on the crossbar server running to function. Since it communicates over the
 secure port on crossbar we need the TLS certificates mounted. The HTTP server
 defaultly runs on port 5000, but you can change this with the environment
-variable 'PORT', as shown in the example.
+variable 'PORT', as shown in the example. There is also a 'LOGLEVEL'
+environment variable which can be used to set the log level. This is useful for
+debugging. txaio is used for logging.
 
 .. code-block:: yaml
 
@@ -73,6 +75,7 @@ variable 'PORT', as shown in the example.
         - "sisock-crossbar"
       environment:
         PORT: "5001"
+        LOGLEVEL: "info"
       volumes:
         - ./.crossbar:/app/.crossbar:ro
 

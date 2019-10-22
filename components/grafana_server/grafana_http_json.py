@@ -234,31 +234,64 @@ class GrafanaSisockDatasrc(object):
         res = []
         for data_node, field in poll.items():
             # Request data from sisock.
-            data = yield self._session.call(sisock.base.uri("consumer." + \
-                                                       data_node + ".get_data"),
+            data = yield self._session.call(sisock.base.uri("consumer." +
+                                                            data_node +
+                                                            ".get_data"),
                                             field, t_start, t_end,
                                             min_stride=interval)
 
-            # Loop through the fields and convert to something that we can
-            # feed as JSON in the format that grafana reads.
-            # WARNING: right now, we only return the "timeserie" format, not the
-            # "table" format; if the latter gets requested then grafana will not
-            # understand out response.
-            for f in field:
-                # First figure out which timeline this field uses, grab it from
-                # sisock's response, and convert to milliseconds.
-                try:
-                    tl_name = self._field[data_node][0][f]["timeline"]
-                    tl = np.array(data["timeline"][tl_name]["t"]) * 1000.0
-                except Exception as e:
-                    print("%s occurred with field '%s', skipping..." %
-                          (type(e), f))
-                    continue
+            # Identifies HKArchiveScanner API in use by generic 'group0' used
+            # in its output. This is kind of a hack.
+            if 'group0' in data['timeline']:
+                self.log.debug("Detected results from HKArchiveScanner use")
+                _timelines = data['timeline']
+                _data = data['data']
+                self.log.debug(f'Querying for data in fields: {field}')
 
-                # Now build the response for this field.
-                d = {"target": data_node + "::" + f,
-                     "datapoints": list(zip(data["data"][f], tl))}
-                res.append(d)
+                # Produces a mapping of field name to group (timeline name)
+                # Example: {'observatory.LSA22YE.feeds.temperatures.Channel 07 R': 'group0',
+                #           'observatory.LSA22YE.feeds.temperatures.Channel 03 R': 'group1',
+                #           'observatory.LSA22YE.feeds.temperatures.Channel 01 R': 'group2'}
+                group_map = {}
+                for group, v in _timelines.items():
+                    for _field in v['fields']:
+                        group_map[_field] = group
+                self.log.debug('group_map: {g}', g=group_map)
+
+                for f in field:
+                    self.log.debug("Processing field {_f}", _f=f)
+                    if f in group_map:
+                        tl_name = group_map[f]
+                        tl = np.array(_timelines[tl_name]["t"]) * 1000.0
+                        d = {"target": data_node + "::" + f,
+                             "datapoints": list(zip(_data[f], tl))}
+                    else:
+                        self.log.debug('field {_f} not found in group_map,' +
+                                       'returning empty list', _f=f)
+                        # Results in name showing up in key, but no data points
+                        d = {"target": data_node + "::" + f, "datapoints": []}
+                    res.append(d)
+            else:
+                # Loop through the fields and convert to something that we can
+                # feed as JSON in the format that grafana reads.
+                # WARNING: right now, we only return the "timeserie" format, not the
+                # "table" format; if the latter gets requested then grafana will not
+                # understand out response.
+                for f in field:
+                    # First figure out which timeline this field uses, grab it from
+                    # sisock's response, and convert to milliseconds.
+                    try:
+                        tl_name = self._field[data_node][0][f]["timeline"]
+                        tl = np.array(data["timeline"][tl_name]["t"]) * 1000.0
+                        # Now build the response for this field.
+                        d = {"target": data_node + "::" + f,
+                             "datapoints": list(zip(data["data"][f], tl))}
+                    except KeyError:
+                        self.log.debug('field {_f} not found,' +
+                                       'returning empty list', _f=f)
+                        # Results in name showing up in key, but no data points
+                        d = {"target": data_node + "::" + f, "datapoints": []}
+                    res.append(d)
 
         # Convert to JSON and send off to grafana.
         ret = json.dumps(res)
@@ -352,7 +385,7 @@ def main(reactor):
     comp_d = component.start(reactor)
 
     # When not using run() we also must start logging ourselves.
-    txaio.start_logging(level='info')
+    txaio.start_logging(level=environ.get("LOGLEVEL", "info"))
 
     # If the Component raises an exception we want to exit. Note that
     # things like failing to connect will be swallowed by the
