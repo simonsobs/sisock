@@ -1,2 +1,14 @@
 [report]
 omit = sisock/_version.py
+
+exclude_lines =
+    # Don't complain if non-runnable code isn't run:
+    if 0:
+    if __name__ == .__main__.:
+
+[run]
+omit =
+    */site-packages/*
+    */distutils/*
+    tests/*
+    sisock/old.py

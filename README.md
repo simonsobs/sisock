@@ -203,6 +203,16 @@ remove the grafana-storage container:
 $ docker volume rm grafana-storage
 ```
 
+## Testing
+We currently use the unittest module provided by twisted for testing. Code
+coverage is provided by the coverage module. coverage can command test runners.
+You can run the unittests from the top level directory with:
+
+```
+$ coverage run -m unittest
+$ coverage report
+```
+
 ## License
 
 This project is licensed under the BSD 2-Clause License - see the [LICENSE.txt](LICENSE.txt) file for details.

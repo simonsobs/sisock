@@ -10,7 +10,7 @@ python:
 stages:
   - test
   - name: dockerize
-    if: branch = master
+    if: branch = master OR tag IS present
 
 jobs:
   include:
@@ -18,7 +18,7 @@ jobs:
       install:
         - pip install -r requirements.txt .
       script:
-        - pytest --cov sisock tests/
+        - coverage run -m unittest
 
       after_success: coveralls
 
