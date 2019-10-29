@@ -4,6 +4,7 @@
 
 import sys
 import time
+import txaio
 import numpy as np
 
 from os import environ
@@ -13,8 +14,12 @@ from twisted.internet.defer import inlineCallbacks
 
 from autobahn.wamp.types import ComponentConfig
 from autobahn.twisted.wamp import ApplicationSession, ApplicationRunner
+from autobahn.wamp.uri import SubscribeOptions
 
 import sisock
+
+# For logging
+txaio.use_twisted()
 
 
 class data_feed_server(sisock.base.DataNodeServer):
@@ -38,10 +43,15 @@ class data_feed_server(sisock.base.DataNodeServer):
         crossbar address for subscribing to a feed for data collection
     buffer_time : int
         amount of time, in seconds, to buffer data for live monitor
+    log : txaio.tx.Logger
+        txaio logger object, used for logging in WAMP applications
+
+    Attributes
+    ----------
+    cache : dict
+        Data cache for storing published data
 
     """
-    data = {}
-
     def __init__(self, config, name, description, feed, target=None,
                  buffer_time=3600):
         ApplicationSession.__init__(self, config)
@@ -50,6 +60,12 @@ class data_feed_server(sisock.base.DataNodeServer):
         self.description = description
         self.buffer_time = buffer_time
         self.feed = feed
+
+        # Logging
+        self.log = txaio.make_logger()
+
+        # Data Cache
+        self.cache = {}
 
     # Need to overload onConnect and onChallenge to get ws connection over port
     # 8001 to crossbar
@@ -79,17 +95,18 @@ class data_feed_server(sisock.base.DataNodeServer):
 
             """
             message, feed_data = subscription_message
+            self.log.debug("feed_data: {m}", m=feed_data)
 
             # Check we're a DataNodeServer for the correct Agent.
             if feed_data['agent_address'] == 'observatory.{}'.format(self.target):
-                yield threads.deferToThread(self.extend_data, message)
+                yield threads.deferToThread(self.extend_data, message, feed_data)
                 print("Received published data from feed: " +
                       "observatory.{}.feeds.{}".format(self.target, self.feed))
 
         topic_uri = u'observatory.{}.feeds.{}'.format(self.target, self.feed)
-        yield self.subscribe(cache_data, topic_uri)
+        yield self.subscribe(cache_data, topic_uri, SubscribeOptions(match=u"wildcard"))
 
-    def extend_data(self, message):
+    def extend_data(self, message, feed_data):
         """Extend data in the cache recieved in message.
 
         This operation was slow enough to cause issues when run in the reactor
@@ -100,28 +117,43 @@ class data_feed_server(sisock.base.DataNodeServer):
         message
             message from OCS subscription feed. See OCS Feed documentation for
             message structure.
+        feed_data
+            feed_data dict from OCS Feed subscription
 
         """
-        for block, value in message.items():
-            for channel, data_array in value['data'].items():
-                channel_name = channel.lower().replace(' ', '_')
+        agent_address = feed_data['agent_address']
+        feed_name = feed_data['feed_name']
 
-                if channel_name not in self.data.keys():
-                    self.data[channel_name] = {"time": [], "data": []}
+        # Initialize top of cache dict
+        if agent_address not in self.cache.keys():
+            self.cache[agent_address] = {}
+
+        if feed_name not in self.cache[agent_address].keys():
+            self.cache[agent_address][feed_name] = {}
+
+        # The specific sub-dict of the cache we're going to load data into
+        target_cache = self.cache[agent_address][feed_name]
+
+        for _, value in message.items():
+            for key, data_array in value['data'].items():
+                key_name = key.lower().replace(' ', '_')
+
+                if key_name not in target_cache.keys():
+                    target_cache[key_name] = {"time": [], "data": []}
 
                 # Cache latest data point.
-                self.data[channel_name]['data'].extend(value['data'][channel])
+                target_cache[key_name]['data'].extend(value['data'][key])
                 # This could be improved. We're caching a copy of the
-                # timestamps array for each channel, which is
+                # timestamps array for each key, which is
                 # inefficient for the 240s, but used to make sense in
                 # the old feed scheme
-                self.data[channel_name]['time'].extend(value['timestamps'])
+                target_cache[key_name]['time'].extend(value['timestamps'])
 
                 # Clear data from buffer.
                 buff_idx = sum(time.time() -
-                               np.array(self.data[channel_name]['time']) > self.buffer_time)
-                self.data[channel_name]['time'] = self.data[channel_name]['time'][buff_idx:]
-                self.data[channel_name]['data'] = self.data[channel_name]['data'][buff_idx:]
+                               np.array(target_cache[key_name]['time']) > self.buffer_time)
+                target_cache[key_name]['time'] = target_cache[key_name]['time'][buff_idx:]
+                target_cache[key_name]['data'] = target_cache[key_name]['data'][buff_idx:]
 
     def onDisconnect(self):
         print("disconnected")
@@ -144,10 +176,10 @@ class data_feed_server(sisock.base.DataNodeServer):
                 if field_name not in _data['data']:
                     _data['data'][field_name] = []
 
-                # Get the data for this field from self.data within given time frame.
-                idx = np.where(np.logical_and(np.array(self.data[field_name]['time']) >= start,
-                                              np.array(self.data[field_name]['time']) <= end))
-                _data['data'][field_name] = np.array(self.data[field_name]['data'])[idx[0]].tolist()
+                # Get the data for this field from self.cache within given time frame.
+                idx = np.where(np.logical_and(np.array(self.cache[field_name]['time']) >= start,
+                                              np.array(self.cache[field_name]['time']) <= end))
+                _data['data'][field_name] = np.array(self.cache[field_name]['data'])[idx[0]].tolist()
 
                 # _data['timeline']
                 _timeline_name = 'observatory.{}'.format(self.target) + '.' + field_name
@@ -156,10 +188,10 @@ class data_feed_server(sisock.base.DataNodeServer):
                     _data['timeline'][_timeline_name] = {'t': [], 'finalized_until': None}
 
                 _data['timeline'][_timeline_name]['t'] = \
-                    np.array(self.data[field_name]['time'])[idx[0]].tolist()
+                    np.array(self.cache[field_name]['time'])[idx[0]].tolist()
 
             except KeyError:
-                print("Received data query for field {} when it doesn't exist.".format(field_name))
+                self.log.warn("Received data query for field {} when it doesn't exist.".format(field_name))
 
         return _data
 
@@ -172,7 +204,7 @@ class data_feed_server(sisock.base.DataNodeServer):
         _field = {}
         _timeline = {}
 
-        for channel_name in self.data.keys():
+        for channel_name in self.cache.keys():
             # Populate _field and _timeline
             _timeline_name = 'observatory.{}'.format(self.target) + '.' + channel_name
 
@@ -199,6 +231,9 @@ class data_feed_server(sisock.base.DataNodeServer):
 if __name__ == '__main__':
     # Give time for crossbar server to start
     time.sleep(5)
+
+    # Start logging
+    txaio.start_logging(level=environ.get("LOGLEVEL", "info"))
 
     # Check variables setup when creating the Docker container.
     required_env = ['TARGET', 'NAME', 'DESCRIPTION', 'FEED']
