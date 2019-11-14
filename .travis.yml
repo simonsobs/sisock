@@ -10,7 +10,9 @@ python:
 stages:
   - test
   - name: dockerize
-    if: branch = master
+    if: |
+      branch = master AND \
+      type = push
 
 jobs:
   include:
